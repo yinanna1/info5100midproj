@@ -2,9 +2,12 @@ package view;
 
 import dao.LessonDAO;
 import dao.SectionDAO;
+import dao.LibraryItemDAO;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 
 public class AdminDashboardUI extends JDialog {
 
@@ -13,24 +16,27 @@ public class AdminDashboardUI extends JDialog {
     private final Runnable refreshCallback;
 
     public AdminDashboardUI(LessonDAO lessonDAO, SectionDAO sectionDAO, Runnable refreshCallback) {
-        super((Frame) null, "Admin Dashboard", true);
+        // non-modal; MainController decides when to show it
+        super((Frame) null, "Admin Dashboard", false);
         this.lessonDAO = lessonDAO;
         this.sectionDAO = sectionDAO;
         this.refreshCallback = refreshCallback;
 
-        setSize(450, 350);
+        setSize(450, 400);
         setLocationRelativeTo(null);
-        setLayout(new GridLayout(4, 1, 10, 10));
+        setLayout(new GridLayout(5, 1, 10, 10));
 
         JButton createCourseBtn = new JButton("Create Course");
         JButton deleteCourseBtn = new JButton("Delete Course");
         JButton createSectionBtn = new JButton("Create Section");
         JButton deleteSectionBtn = new JButton("Delete Section");
+        JButton manageLibraryBtn = new JButton("Manage Library");   // NEW
 
         add(createCourseBtn);
         add(deleteCourseBtn);
         add(createSectionBtn);
         add(deleteSectionBtn);
+        add(manageLibraryBtn);
 
         // =====================================================
         // CREATE COURSE (ONE POPUP WITH ALL FIELDS)
@@ -178,6 +184,22 @@ public class AdminDashboardUI extends JDialog {
             }
         });
 
-        setVisible(true);
+        // =====================================================
+        // MANAGE LIBRARY (NEW)
+        // =====================================================
+        manageLibraryBtn.addActionListener(e -> {
+            LibraryItemDAO libraryDAO = new LibraryItemDAO();
+            LibraryAdminUI libUI = new LibraryAdminUI(libraryDAO);
+            libUI.setVisible(true);
+        });
+
+        // Close admin dashboard = exit whole program
+        addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosing(WindowEvent e) {
+                System.exit(0);
+            }
+        });
     }
 }
+
