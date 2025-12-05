@@ -8,6 +8,8 @@ import model.Lesson;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.util.List;
 
 public class InstructorDashboardUI extends JDialog {
@@ -24,7 +26,7 @@ public class InstructorDashboardUI extends JDialog {
     private final JList<Section> sectionsList = new JList<>(sectionsModel);
     private final JList<Student> studentsList = new JList<>(studentsModel);
 
-    // New: details area for section + lesson info
+    // details area for section + lesson info
     private final JTextArea infoArea = new JTextArea();
 
     public InstructorDashboardUI(
@@ -46,10 +48,21 @@ public class InstructorDashboardUI extends JDialog {
         setLocationRelativeTo(null);
         setLayout(new BorderLayout());
 
+        // when user closes this window, exit whole program
+        setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
+        addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosing(WindowEvent e) {
+                System.exit(0);
+            }
+        });
+
         // ============================
         // TOP: INSTRUCTOR INFO
         // ============================
-        String name = instructor.getUserName() != null ? instructor.getUserName() : ("Instructor " + instructor.getInstructorId());
+        String name = instructor.getUserName() != null
+                ? instructor.getUserName()
+                : ("Instructor " + instructor.getInstructorId());
         JLabel header = new JLabel(
                 "Instructor: " + name + " (ID: " + instructor.getInstructorId() + ")",
                 SwingConstants.CENTER
@@ -75,17 +88,36 @@ public class InstructorDashboardUI extends JDialog {
         add(centerPanel, BorderLayout.CENTER);
 
         // ============================
-        // BOTTOM: SECTION + LESSON INFO
+        // BOTTOM: SECTION + LESSON INFO + VIEW LIBRARY
         // ============================
         infoArea.setEditable(false);
         infoArea.setLineWrap(true);
         infoArea.setWrapStyleWord(true);
 
         JPanel bottom = new JPanel(new BorderLayout());
-        bottom.add(new JLabel("Section & Lesson Info", SwingConstants.CENTER), BorderLayout.NORTH);
+
+        // Top row: label + "View Library" button
+        JPanel bottomTop = new JPanel(new BorderLayout());
+        bottomTop.add(new JLabel("Section & Lesson Info", SwingConstants.CENTER), BorderLayout.CENTER);
+
+        JButton viewLibraryBtn = new JButton("View Library");
+        bottomTop.add(viewLibraryBtn, BorderLayout.EAST);
+
+        bottom.add(bottomTop, BorderLayout.NORTH);
         bottom.add(new JScrollPane(infoArea), BorderLayout.CENTER);
 
         add(bottom, BorderLayout.SOUTH);
+
+        // Library popup: modal and centered over this dashboard
+        viewLibraryBtn.addActionListener(e -> {
+            LibraryItemDAO libraryDAO = new LibraryItemDAO();
+            LibraryStudentUI libUI = new LibraryStudentUI(libraryDAO);
+            libUI.setModal(true);
+            libUI.setLocationRelativeTo(InstructorDashboardUI.this);
+            libUI.toFront();
+            libUI.requestFocus();
+            libUI.setVisible(true);
+        });
 
         // Update students + details when a section is selected
         sectionsList.addListSelectionListener(e -> {
@@ -100,7 +132,7 @@ public class InstructorDashboardUI extends JDialog {
         loadStudents();
         loadSectionAndLessonInfo();
 
-        // Optionally auto-select the first section if available
+        // Auto-select the first section if available
         if (!sectionsModel.isEmpty()) {
             sectionsList.setSelectedIndex(0);
         }
