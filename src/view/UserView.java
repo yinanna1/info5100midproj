@@ -1,38 +1,44 @@
+package view;
+
 import javax.swing.*;
 import java.awt.*;
 
 public class UserView extends JFrame {
 
-    // Create fields
-    JTextField nameField = new JTextField();
-    JTextField emailField = new JTextField();
-    JTextField passwordField = new JTextField();
-    JComboBox<String> roleDropdown = new JComboBox<>(new String[]{"student", "instructor", "admin"});
-    JButton createBtn = new JButton("Add model.User");
+    // Fields for CREATE
+    public JTextField nameField = new JTextField();
+    public JTextField emailField = new JTextField();
+    public JTextField passwordField = new JTextField();
+    public JComboBox<String> roleDropdown =
+            new JComboBox<>(new String[]{"student", "instructor", "admin"});
+    public JButton createBtn = new JButton("Create User");
 
-    // Read fields
-    JTextArea readArea = new JTextArea();
-    JButton readBtn = new JButton("Load Users");
+    // Fields for READ
+    public JTextArea readArea = new JTextArea();
+    public JButton readBtn = new JButton("Load Users");
 
-    // Update fields
-    JTextField updateIdField = new JTextField();
-    JTextField updateEmailField = new JTextField();
-    JTextField updatePasswordField = new JTextField();
-    JButton updateBtn = new JButton("Update model.User");
+    // Fields for UPDATE
+    public JTextField updateIdField = new JTextField();
+    public JTextField updateEmailField = new JTextField();
+    public JTextField updatePasswordField = new JTextField();
+    public JButton updateBtn = new JButton("Update User");
 
-    // Delete fields
-    JTextField deleteIdField = new JTextField();
-    JButton deleteBtn = new JButton("Delete model.User");
+    // Fields for DELETE
+    public JTextField deleteIdField = new JTextField();
+    public JButton deleteBtn = new JButton("Delete User");
+
+    // Record Navigator button
+    public JButton navigatorBtn = new JButton("Open Record Navigator");
 
     public UserView() {
-        setTitle("model.User Management System (MVC)");
-        setSize(600, 500);
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setTitle("User Management (MVC)");
+        setSize(650, 500);
         setLocationRelativeTo(null);
+        setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
 
         JTabbedPane tabs = new JTabbedPane();
 
-        // ------------------- CREATE TAB -------------------
+        // CREATE TAB
         JPanel createPanel = new JPanel(new GridLayout(5, 2, 10, 10));
         createPanel.add(new JLabel("Name:"));
         createPanel.add(nameField);
@@ -45,15 +51,15 @@ public class UserView extends JFrame {
         createPanel.add(new JLabel(""));
         createPanel.add(createBtn);
 
-        // ------------------- READ TAB -------------------
+        // READ TAB
         JPanel readPanel = new JPanel(new BorderLayout());
         readArea.setEditable(false);
         readPanel.add(readBtn, BorderLayout.NORTH);
         readPanel.add(new JScrollPane(readArea), BorderLayout.CENTER);
 
-        // ------------------- UPDATE TAB -------------------
+        // UPDATE TAB
         JPanel updatePanel = new JPanel(new GridLayout(4, 2, 10, 10));
-        updatePanel.add(new JLabel("model.User ID:"));
+        updatePanel.add(new JLabel("User ID:"));
         updatePanel.add(updateIdField);
         updatePanel.add(new JLabel("New Email:"));
         updatePanel.add(updateEmailField);
@@ -62,17 +68,23 @@ public class UserView extends JFrame {
         updatePanel.add(new JLabel(""));
         updatePanel.add(updateBtn);
 
-        // ------------------- DELETE TAB -------------------
+        // DELETE TAB
         JPanel deletePanel = new JPanel(new GridLayout(2, 2, 10, 10));
-        deletePanel.add(new JLabel("model.User ID:"));
+        deletePanel.add(new JLabel("User ID:"));
         deletePanel.add(deleteIdField);
         deletePanel.add(new JLabel(""));
         deletePanel.add(deleteBtn);
 
+        // Navigator tab
+        JPanel navPanel = new JPanel();
+        navPanel.add(navigatorBtn);
+
+        // Add Tabs
         tabs.add("Create", createPanel);
         tabs.add("Read", readPanel);
         tabs.add("Update", updatePanel);
         tabs.add("Delete", deletePanel);
+        tabs.add("Navigator", navPanel);
 
         add(tabs);
         setVisible(true);

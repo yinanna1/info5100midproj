@@ -9,24 +9,78 @@ import java.util.List;
 
 public class SectionStudentDAO {
 
-    // ─────────────────────────────────────────────
-    // 1️⃣ GET ALL STUDENTS IN A SECTION
-    // ─────────────────────────────────────────────
+    // ADD STUDENT TO SECTION
+    public boolean addStudentToSection(int studentId, int sectionId) {
+        String sql = "INSERT INTO SectionStudent (studentId, sectionId) VALUES (?, ?)";
+
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setInt(1, studentId);
+            ps.setInt(2, sectionId);
+
+            return ps.executeUpdate() > 0;
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
+    // REMOVE STUDENT FROM SECTION
+    public boolean removeStudentFromSection(int studentId, int sectionId) {
+        String sql = "DELETE FROM SectionStudent WHERE studentId = ? AND sectionId = ?";
+
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setInt(1, studentId);
+            ps.setInt(2, sectionId);
+
+            return ps.executeUpdate() > 0;
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
+    // CHECK IF STUDENT ALREADY ENROLLED
+    public boolean isStudentInSection(int studentId, int sectionId) {
+        String sql = "SELECT 1 FROM SectionStudent WHERE studentId = ? AND sectionId = ?";
+
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setInt(1, studentId);
+            ps.setInt(2, sectionId);
+
+            ResultSet rs = ps.executeQuery();
+            return rs.next();
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
+    // ❗ REQUIRED BY CONTROLLERS
+    // GET ALL STUDENTS IN A SECTION
     public List<Student> getStudentsBySection(int sectionId) {
         List<Student> list = new ArrayList<>();
 
         String sql =
-                "SELECT st.studentId, st.userId, u.userName " +
+                "SELECT s.studentId, s.userId, u.userName " +
                         "FROM SectionStudent ss " +
-                        "JOIN Student st ON ss.studentId = st.studentId " +
-                        "JOIN user u ON st.userId = u.userId " +
+                        "JOIN Student s ON ss.studentId = s.studentId " +
+                        "LEFT JOIN user u ON s.userId = u.userId " +
                         "WHERE ss.sectionId = ?";
 
         try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+             PreparedStatement ps = conn.prepareStatement(sql)) {
 
-            stmt.setInt(1, sectionId);
-            ResultSet rs = stmt.executeQuery();
+            ps.setInt(1, sectionId);
+            ResultSet rs = ps.executeQuery();
 
             while (rs.next()) {
                 list.add(new Student(
@@ -39,13 +93,11 @@ public class SectionStudentDAO {
         } catch (SQLException e) {
             e.printStackTrace();
         }
-
         return list;
     }
 
-    // ─────────────────────────────────────────────
-    // 2️⃣ GET ALL SECTIONS A STUDENT IS ENROLLED IN
-    // ─────────────────────────────────────────────
+    // ❗ REQUIRED BY MainController
+    // GET SECTIONS A STUDENT IS ENROLLED IN
     public List<Section> getSectionsByStudent(int studentId) {
         List<Section> list = new ArrayList<>();
 
@@ -56,10 +108,10 @@ public class SectionStudentDAO {
                         "WHERE ss.studentId = ?";
 
         try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+             PreparedStatement ps = conn.prepareStatement(sql)) {
 
-            stmt.setInt(1, studentId);
-            ResultSet rs = stmt.executeQuery();
+            ps.setInt(1, studentId);
+            ResultSet rs = ps.executeQuery();
 
             while (rs.next()) {
                 list.add(new Section(

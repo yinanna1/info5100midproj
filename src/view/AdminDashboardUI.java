@@ -1,90 +1,183 @@
 package view;
 
+import dao.LessonDAO;
+import dao.SectionDAO;
+
 import javax.swing.*;
+import java.awt.*;
 
-public class AdminDashboardUI extends JFrame {
+public class AdminDashboardUI extends JDialog {
 
-    public JTabbedPane tabs;
+    private final LessonDAO lessonDAO;
+    private final SectionDAO sectionDAO;
+    private final Runnable refreshCallback;
 
-    // Course Panel
-    public JPanel coursePanel;
-    public JButton addCourseBtn, editCourseBtn, deleteCourseBtn;
-    public JList lessonList;
+    public AdminDashboardUI(LessonDAO lessonDAO, SectionDAO sectionDAO, Runnable refreshCallback) {
+        super((Frame) null, "Admin Dashboard", true);
+        this.lessonDAO = lessonDAO;
+        this.sectionDAO = sectionDAO;
+        this.refreshCallback = refreshCallback;
 
-    // Section Panel
-    public JPanel sectionPanel;
-    public JButton addSectionBtn, editSectionBtn, deleteSectionBtn;
-    public JList sectionList;
-
-    // Instructor Panel
-    public JPanel instructorPanel;
-    public JButton addInstructorBtn, editInstructorBtn, deleteInstructorBtn;
-    public JList instructorList;
-
-    // Student Panel
-    public JPanel studentPanel;
-    public JButton addStudentBtn, editStudentBtn, deleteStudentBtn;
-    public JList studentList;
-
-    public AdminDashboardUI() {
-        setTitle("Admin Dashboard");
-        setSize(900, 600);
+        setSize(450, 350);
         setLocationRelativeTo(null);
-        setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+        setLayout(new GridLayout(4, 1, 10, 10));
 
-        tabs = new JTabbedPane();
+        JButton createCourseBtn = new JButton("Create Course");
+        JButton deleteCourseBtn = new JButton("Delete Course");
+        JButton createSectionBtn = new JButton("Create Section");
+        JButton deleteSectionBtn = new JButton("Delete Section");
 
-        // Build course tab
-        coursePanel = new JPanel();
-        lessonList = new JList();
-        addCourseBtn = new JButton("Add Course");
-        editCourseBtn = new JButton("Edit Course");
-        deleteCourseBtn = new JButton("Delete Course");
-        coursePanel.add(new JScrollPane(lessonList));
-        coursePanel.add(addCourseBtn);
-        coursePanel.add(editCourseBtn);
-        coursePanel.add(deleteCourseBtn);
+        add(createCourseBtn);
+        add(deleteCourseBtn);
+        add(createSectionBtn);
+        add(deleteSectionBtn);
 
-        // Build section tab
-        sectionPanel = new JPanel();
-        sectionList = new JList();
-        addSectionBtn = new JButton("Add Section");
-        editSectionBtn = new JButton("Edit Section");
-        deleteSectionBtn = new JButton("Delete Section");
-        sectionPanel.add(new JScrollPane(sectionList));
-        sectionPanel.add(addSectionBtn);
-        sectionPanel.add(editSectionBtn);
-        sectionPanel.add(deleteSectionBtn);
+        // =====================================================
+        // CREATE COURSE (ONE POPUP WITH ALL FIELDS)
+        // =====================================================
+        createCourseBtn.addActionListener(e -> {
+            JTextField instructorF = new JTextField();
+            JTextField titleF = new JTextField();
+            JTextField instrumentF = new JTextField();
+            JTextField startF = new JTextField();
+            JTextField endF = new JTextField();
+            JTextField descF = new JTextField();
 
-        // Instructor tab
-        instructorPanel = new JPanel();
-        instructorList = new JList();
-        addInstructorBtn = new JButton("Add Instructor");
-        editInstructorBtn = new JButton("Edit Instructor");
-        deleteInstructorBtn = new JButton("Delete Instructor");
-        instructorPanel.add(new JScrollPane(instructorList));
-        instructorPanel.add(addInstructorBtn);
-        instructorPanel.add(editInstructorBtn);
-        instructorPanel.add(deleteInstructorBtn);
+            JPanel panel = new JPanel(new GridLayout(6, 2));
+            panel.add(new JLabel("Instructor ID:"));
+            panel.add(instructorF);
 
-        // Student tab
-        studentPanel = new JPanel();
-        studentList = new JList();
-        addStudentBtn = new JButton("Add Student");
-        editStudentBtn = new JButton("Edit Student");
-        deleteStudentBtn = new JButton("Delete Student");
-        studentPanel.add(new JScrollPane(studentList));
-        studentPanel.add(addStudentBtn);
-        studentPanel.add(editStudentBtn);
-        studentPanel.add(deleteStudentBtn);
+            panel.add(new JLabel("Title:"));
+            panel.add(titleF);
 
-        // Attach tabs
-        tabs.add("Courses", coursePanel);
-        tabs.add("Sections", sectionPanel);
-        tabs.add("Teachers", instructorPanel);
-        tabs.add("Students", studentPanel);
+            panel.add(new JLabel("Instrument:"));
+            panel.add(instrumentF);
 
-        add(tabs);
+            panel.add(new JLabel("Start Time (yyyy-mm-dd HH:MM:SS):"));
+            panel.add(startF);
+
+            panel.add(new JLabel("End Time (yyyy-mm-dd HH:MM:SS):"));
+            panel.add(endF);
+
+            panel.add(new JLabel("Description:"));
+            panel.add(descF);
+
+            int ok = JOptionPane.showConfirmDialog(this, panel, "Create Course", JOptionPane.OK_CANCEL_OPTION);
+
+            if (ok == JOptionPane.OK_OPTION) {
+                try {
+                    int instructorId = Integer.parseInt(instructorF.getText());
+                    String title = titleF.getText();
+                    String instrument = instrumentF.getText();
+                    String start = startF.getText();
+                    String end = endF.getText();
+                    String desc = descF.getText();
+
+                    int id = lessonDAO.createLesson(instructorId, title, instrument, start, end, desc);
+
+                    if (id > 0) {
+                        JOptionPane.showMessageDialog(this, "Course created!");
+                        refreshCallback.run();
+                    } else {
+                        JOptionPane.showMessageDialog(this, "Failed to create course.");
+                    }
+
+                } catch (Exception ex) {
+                    JOptionPane.showMessageDialog(this, "Invalid input.");
+                }
+            }
+        });
+
+        // =====================================================
+        // DELETE COURSE
+        // =====================================================
+        deleteCourseBtn.addActionListener(e -> {
+            try {
+                String input = JOptionPane.showInputDialog(this, "Enter Course (Lesson) ID to delete:");
+                if (input == null) return;
+
+                int id = Integer.parseInt(input);
+
+                if (lessonDAO.deleteLesson(id)) {
+                    JOptionPane.showMessageDialog(this, "Course deleted.");
+                    refreshCallback.run();
+                } else {
+                    JOptionPane.showMessageDialog(this, "Delete failed.");
+                }
+
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(this, "Invalid ID.");
+            }
+        });
+
+        // =====================================================
+        // CREATE SECTION
+        // =====================================================
+        createSectionBtn.addActionListener(e -> {
+            JTextField nameF = new JTextField();
+            JTextField lessonF = new JTextField();
+            JTextField instructorF2 = new JTextField();
+            JTextField roomF = new JTextField();
+
+            JPanel panel = new JPanel(new GridLayout(4, 2));
+            panel.add(new JLabel("Section Name:"));
+            panel.add(nameF);
+
+            panel.add(new JLabel("Lesson ID:"));
+            panel.add(lessonF);
+
+            panel.add(new JLabel("Instructor ID:"));
+            panel.add(instructorF2);
+
+            panel.add(new JLabel("Room:"));
+            panel.add(roomF);
+
+            int ok = JOptionPane.showConfirmDialog(this, panel, "Create Section", JOptionPane.OK_CANCEL_OPTION);
+
+            if (ok == JOptionPane.OK_OPTION) {
+                try {
+                    String name = nameF.getText();
+                    int lessonId = Integer.parseInt(lessonF.getText());
+                    int instructorId = Integer.parseInt(instructorF2.getText());
+                    int room = Integer.parseInt(roomF.getText());
+
+                    int id = sectionDAO.createSection(name, lessonId, instructorId, room);
+
+                    if (id > 0) {
+                        JOptionPane.showMessageDialog(this, "Section created!");
+                        refreshCallback.run();
+                    } else {
+                        JOptionPane.showMessageDialog(this, "Failed to create section.");
+                    }
+
+                } catch (Exception ex) {
+                    JOptionPane.showMessageDialog(this, "Invalid input.");
+                }
+            }
+        });
+
+        // =====================================================
+        // DELETE SECTION
+        // =====================================================
+        deleteSectionBtn.addActionListener(e -> {
+            try {
+                String input = JOptionPane.showInputDialog(this, "Enter Section ID to delete:");
+                if (input == null) return;
+
+                int id = Integer.parseInt(input);
+
+                if (sectionDAO.deleteSection(id)) {
+                    JOptionPane.showMessageDialog(this, "Section deleted.");
+                    refreshCallback.run();
+                } else {
+                    JOptionPane.showMessageDialog(this, "Delete failed.");
+                }
+
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(this, "Invalid ID.");
+            }
+        });
+
+        setVisible(true);
     }
 }
-

@@ -4,46 +4,31 @@ public class Student {
 
     private int studentId;
     private int userId;
-    private String userName;
+    private String userName; // optional – can be null if not joined
 
-    public Student() {}
-
+    // Constructor for student JOIN users (studentId, userId, userName)
     public Student(int studentId, int userId, String userName) {
         this.studentId = studentId;
         this.userId = userId;
         this.userName = userName;
     }
 
-    public int getStudentId() {
-        return studentId;
-    }
-
-    public void setStudentId(int studentId) {
+    // Constructor for old code (studentId, userId only)
+    public Student(int studentId, int userId) {
         this.studentId = studentId;
-    }
-
-    public int getUserId() {
-        return userId;
-    }
-
-    public void setUserId(int userId) {
         this.userId = userId;
+        this.userName = null; // name not fetched
     }
+
+    public int getStudentId() { return studentId; }
+    public int getUserId() { return userId; }
 
     public String getUserName() {
-        return userName;
-    }
-
-    public void setUserName(String userName) {
-        this.userName = userName;
+        return userName != null ? userName : "(No Name)";
     }
 
     @Override
     public String toString() {
-        return "Student { " +
-                "studentId=" + studentId +
-                ", userId=" + userId +
-                ", userName='" + userName + '\'' +
-                " }";
+        return getUserName();
     }
 }

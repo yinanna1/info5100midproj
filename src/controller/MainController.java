@@ -3,7 +3,11 @@ package controller;
 import dao.*;
 import model.*;
 import view.MainUI;
+import view.AdminDashboardUI;
+import view.InstructorDashboardUI;
+import view.StudentDashboardUI;
 
+import javax.swing.*;
 import java.util.List;
 
 public class MainController {
@@ -13,15 +17,20 @@ public class MainController {
     private final InstructorDAO instructorDAO;
     private final StudentDAO studentDAO;
     private final SectionStudentDAO sectionStudentDAO;
+    private final UserDAO userDAO;
 
     private final MainUI ui;
 
+    // ===============================================================
+    // CONSTRUCTOR
+    // ===============================================================
     public MainController(
             LessonDAO lessonDAO,
             SectionDAO sectionDAO,
             InstructorDAO instructorDAO,
             StudentDAO studentDAO,
             SectionStudentDAO sectionStudentDAO,
+            UserDAO userDAO,
             MainUI ui
     ) {
         this.lessonDAO = lessonDAO;
@@ -29,113 +38,163 @@ public class MainController {
         this.instructorDAO = instructorDAO;
         this.studentDAO = studentDAO;
         this.sectionStudentDAO = sectionStudentDAO;
+        this.userDAO = userDAO;
         this.ui = ui;
 
-        initListeners();
-        loadInitialLists();
+        initMainUI();
     }
 
-    // ------------------------------------------------------------
-    // Load initial data into all lists / combo
-    // ------------------------------------------------------------
-    private void loadInitialLists() {
+    // ===============================================================
+    // INITIALIZE MAIN UI LISTENERS
+    // ===============================================================
+    private void initMainUI() {
+
+        refreshAllLists();
+
+        ui.addLessonSelectionListener(e -> loadSectionsForSelectedLesson());
+        ui.addInstructorSelectionListener(e -> loadSectionsForSelectedInstructor());
+        ui.addSectionSelectionListener(e -> loadStudentsForSelectedSection());
+        ui.addStudentSelectionListener(e -> loadSectionsForSelectedStudent());
+        ui.addSectionDetailSelectionListener(e -> loadSectionDetail());
+
+        ui.editButton.addActionListener(e -> openAdminDashboard());
+    }
+
+    // ===============================================================
+    // REFRESH ALL LISTS
+    // ===============================================================
+    private void refreshAllLists() {
         ui.setLessonList(lessonDAO.getAllLessons());
         ui.setInstructorList(instructorDAO.getAllInstructors());
         ui.setSectionList(sectionDAO.getAllSections());
         ui.setStudentList(studentDAO.getAllStudents());
-
-        // For Tab 5: Section Detail
         ui.setSectionDetailSections(sectionDAO.getAllSections());
     }
 
-    private void initListeners() {
-        // Tabs 1-4
-        ui.addLessonSelectionListener(e -> {
-            if (!e.getValueIsAdjusting()) {
-                showSectionsForLesson();
-            }
-        });
-        ui.addInstructorSelectionListener(e -> {
-            if (!e.getValueIsAdjusting()) {
-                showSectionsForInstructor();
-            }
-        });
-        ui.addSectionSelectionListener(e -> {
-            if (!e.getValueIsAdjusting()) {
-                showStudentsForSection();
-            }
-        });
-        ui.addStudentSelectionListener(e -> {
-            if (!e.getValueIsAdjusting()) {
-                showSectionsForStudent();
-            }
-        });
+    // ===============================================================
+    // TAB 1: Course → Sections
+    // ===============================================================
+    private void loadSectionsForSelectedLesson() {
+        Lesson lesson = ui.getSelectedLesson();
+        if (lesson == null) {
+            ui.setDetailList(List.of(), "No course selected");
+            return;
+        }
 
-        // Tab 5: Section Detail
-        ui.addSectionDetailSelectionListener(e -> showSectionFullDetail());
+        List<Section> sections = sectionDAO.getSectionsByLesson(lesson.getLessonId());
+        ui.setDetailList(sections, "Sections for: " + lesson.getTitle());
     }
 
-    // ────────────────────────────────────────────────────────────────
-    //  MASTER DETAIL 1:  Course (Lesson) → Sections
-    // ────────────────────────────────────────────────────────────────
-    private void showSectionsForLesson() {
-        Lesson selected = ui.getSelectedLesson();
-        if (selected == null) return;
+    // ===============================================================
+    // TAB 2: Teacher → Sections
+    // ===============================================================
+    private void loadSectionsForSelectedInstructor() {
+        Instructor inst = ui.getSelectedInstructor();
+        if (inst == null) {
+            ui.setDetailList(List.of(), "No instructor selected");
+            return;
+        }
 
-        List<Section> sections = sectionDAO.getSectionsByLesson(selected.getLessonId());
-        ui.setDetailList(sections, "Sections for Course: " + selected.getTitle());
+        List<Section> sections = sectionDAO.getSectionsByInstructor(inst.getInstructorId());
+        ui.setDetailList(sections, "Sections taught by: " + inst.getUserName());
     }
 
-    // ────────────────────────────────────────────────────────────────
-    //  MASTER DETAIL 2:  Teacher (Instructor) → Sections
-    // ────────────────────────────────────────────────────────────────
-    private void showSectionsForInstructor() {
-        Instructor selected = ui.getSelectedInstructor();
-        if (selected == null) return;
+    // ===============================================================
+    // TAB 3: Section → Students
+    // ===============================================================
+    private void loadStudentsForSelectedSection() {
+        Section sec = ui.getSelectedSection();
+        if (sec == null) {
+            ui.setDetailList(List.of(), "No section selected");
+            return;
+        }
 
-        List<Section> sections = sectionDAO.getSectionsByInstructor(selected.getInstructorId());
-        ui.setDetailList(sections, "Sections taught by: " + selected.getUserName());
+        List<Student> students = sectionStudentDAO.getStudentsBySection(sec.getSectionId());
+        ui.setDetailList(students, "Students for section: " + sec.getSectionName());
     }
 
-    // ────────────────────────────────────────────────────────────────
-    //  MASTER DETAIL 3:  Section → Students
-    // ────────────────────────────────────────────────────────────────
-    private void showStudentsForSection() {
-        Section section = ui.getSelectedSection();
-        if (section == null) return;
-
-        List<Student> students = sectionStudentDAO.getStudentsBySection(section.getSectionId());
-        ui.setDetailList(students, "Students in Section: " + section.getSectionName());
-    }
-
-    // ────────────────────────────────────────────────────────────────
-    //  MASTER DETAIL 4:  Student → Sections
-    // ────────────────────────────────────────────────────────────────
-    private void showSectionsForStudent() {
+    // ===============================================================
+    // TAB 4: Student → Sections
+    // ===============================================================
+    private void loadSectionsForSelectedStudent() {
         Student student = ui.getSelectedStudent();
-        if (student == null) return;
+        if (student == null) {
+            ui.setDetailList(List.of(), "No student selected");
+            return;
+        }
 
         List<Section> sections = sectionStudentDAO.getSectionsByStudent(student.getStudentId());
-        ui.setDetailList(sections, "Sections for Student: " + student.getUserName());
+        ui.setDetailList(sections, "Sections for student: " + student.getUserName());
     }
 
-    // ────────────────────────────────────────────────────────────────
-    //  NEW: One view showing a+b+c+d for the selected Section
-    // ────────────────────────────────────────────────────────────────
-    private void showSectionFullDetail() {
-        Section section = ui.getSelectedDetailSection();
-        if (section == null) return;
+    // ===============================================================
+    // TAB 5: Section Detail
+    // ===============================================================
+    private void loadSectionDetail() {
+        Section sec = ui.getSelectedDetailSection();
+        if (sec == null) return;
 
-        // a. Course (lesson) information of the section
-        Lesson lesson = lessonDAO.getLessonById(section.getLessonId());
+        Lesson lesson = lessonDAO.getLessonById(sec.getLessonId());
+        Instructor teacher = instructorDAO.getInstructor(sec.getInstructorId());
+        List<Student> students = sectionStudentDAO.getStudentsBySection(sec.getSectionId());
 
-        // c. Teacher information
-        Instructor instructor = instructorDAO.getInstructorById(section.getInstructorId());
+        ui.showSectionDetail(lesson, sec, teacher, students);
+    }
 
-        // d. Students registered in this section
-        List<Student> students = sectionStudentDAO.getStudentsBySection(section.getSectionId());
+    // ===============================================================
+    // ADMIN PANEL
+    // ===============================================================
+    private void openAdminDashboard() {
+        AdminDashboardUI adminUI = new AdminDashboardUI(
+                lessonDAO,
+                sectionDAO,
+                this::refreshAllLists
+        );
+        adminUI.setVisible(true);
+    }
 
-        // b. Section info is already in the Section object
-        ui.showSectionDetail(lesson, section, instructor, students);
+    // ===============================================================
+    // LOGIN HANDLER (NOW TAKES User OBJECT)
+    // ===============================================================
+    public void handleLogin(User loggedIn) {
+
+        if (loggedIn == null) {
+            JOptionPane.showMessageDialog(null, "Invalid login.");
+            return;
+        }
+
+        String role = loggedIn.getRole().toLowerCase();
+
+        switch (role) {
+
+            case "admin" -> openAdminDashboard();
+
+            case "instructor" -> {
+                Instructor instructor =
+                        instructorDAO.getInstructorByUserId(loggedIn.getUserId());
+
+                new InstructorDashboardUI(
+                        instructor,
+                        lessonDAO,
+                        sectionDAO,
+                        studentDAO,
+                        sectionStudentDAO
+                );
+            }
+
+            case "student" -> {
+                Student student = studentDAO.getStudentByUserId(loggedIn.getUserId());
+
+                new StudentDashboardUI(
+                        student,
+                        lessonDAO,
+                        sectionDAO,
+                        studentDAO,
+                        sectionStudentDAO
+                );
+            }
+
+            default -> JOptionPane.showMessageDialog(null, "Unknown role.");
+        }
     }
 }

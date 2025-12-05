@@ -1,13 +1,17 @@
 import controller.MainController;
-import controller.SectionDetailsController;
-import controller.AdminController;
+import controller.StudentDashboardController;
+import dao.*;
+import model.User;
+import model.Student;
 
 import view.MainUI;
-import view.SectionDetailsView;
+import view.UserLoginUI;
+import view.StudentDashboardUI;
 
-import dao.*;
+import javax.swing.*;
 
 public class Main {
+
     public static void main(String[] args) {
 
         try {
@@ -18,45 +22,98 @@ public class Main {
             return;
         }
 
-        javax.swing.SwingUtilities.invokeLater(() -> {
+        SwingUtilities.invokeLater(() -> {
 
-            // ─────────────────────────────────────────────
-            // 0) ADMIN LOGIN + ADMIN DASHBOARD
-            // (This opens FIRST; from there admin controls the system)
-            // ─────────────────────────────────────────────
-            new AdminController();
-            // (Admin login window shows immediately)
+            // -----------------------------------
+            // LOGIN FIRST
+            // -----------------------------------
+            UserLoginUI loginUI = new UserLoginUI();
+            loginUI.setVisible(true);
 
-            // ─────────────────────────────────────────────
-            // 1) MASTER–DETAIL UI (4 tabs)
-            // ─────────────────────────────────────────────
-            MainUI ui = new MainUI();
+            loginUI.waitForLogin();
 
+            User loggedIn = loginUI.getLoggedInUser();
+
+            if (loggedIn == null) {
+                JOptionPane.showMessageDialog(null,
+                        "Login cancelled. Exiting.");
+                System.exit(0);
+            }
+
+            // -----------------------------------
+            // DAO INITIALIZATION
+            // -----------------------------------
             LessonDAO lessonDAO = new LessonDAO();
             SectionDAO sectionDAO = new SectionDAO();
             InstructorDAO instructorDAO = new InstructorDAO();
             StudentDAO studentDAO = new StudentDAO();
             SectionStudentDAO sectionStudentDAO = new SectionStudentDAO();
+            UserDAO userDAO = new UserDAO();
 
-            new MainController(
-                    lessonDAO,
-                    sectionDAO,
-                    instructorDAO,
-                    studentDAO,
-                    sectionStudentDAO,
-                    ui
-            );
+            // -----------------------------------
+            // ROLE ROUTING
+            // -----------------------------------
 
-            // ─────────────────────────────────────────────
-            // 2) SECTION DETAIL VIEW (Part 2 requirement)
-            // ─────────────────────────────────────────────
-            new SectionDetailsController(
-                    new SectionDetailsView(),
-                    sectionDAO,
-                    lessonDAO,
-                    instructorDAO,
-                    sectionStudentDAO
-            );
+            if (loggedIn.getRole().equalsIgnoreCase("admin")) {
+
+                MainUI ui = new MainUI();
+
+                new MainController(
+                        lessonDAO,
+                        sectionDAO,
+                        instructorDAO,
+                        studentDAO,
+                        sectionStudentDAO,
+                        userDAO,
+                        ui
+                );
+
+                ui.setVisible(true);
+                return;
+            }
+
+            if (loggedIn.getRole().equalsIgnoreCase("student")) {
+
+                Student student = studentDAO.getStudentByUserId(loggedIn.getUserId());
+
+                if (student == null) {
+                    JOptionPane.showMessageDialog(null, "No student record found.");
+                    return;
+                }
+
+                StudentDashboardUI studentUI = new StudentDashboardUI(
+                        student,
+                        lessonDAO,
+                        sectionDAO,
+                        studentDAO,
+                        sectionStudentDAO
+                );
+
+                new StudentDashboardController(
+                        student,
+                        studentUI,
+                        lessonDAO,
+                        sectionDAO,
+                        studentDAO,
+                        sectionStudentDAO
+                );
+
+                return;
+            }
+
+            if (loggedIn.getRole().equalsIgnoreCase("instructor")) {
+
+                JOptionPane.showMessageDialog(
+                        null,
+                        "Instructor Dashboard not implemented yet."
+                );
+
+                return;
+            }
+
+            JOptionPane.showMessageDialog(null,
+                    "Unknown role: " + loggedIn.getRole());
+            System.exit(0);
         });
     }
 }
