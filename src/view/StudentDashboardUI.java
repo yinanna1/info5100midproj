@@ -8,6 +8,8 @@ import model.Student;
 import javax.swing.*;
 import javax.swing.event.ListSelectionListener;
 import java.awt.*;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.util.List;
 
 public class StudentDashboardUI extends JDialog {
@@ -26,6 +28,9 @@ public class StudentDashboardUI extends JDialog {
     private final JButton addSectionBtn = new JButton("Add Section");
     private final JButton dropSectionBtn = new JButton("Drop Section");
 
+    // NEW: details area for selected section
+    private final JTextArea sectionInfoArea = new JTextArea();
+
     public StudentDashboardUI(
             Student student,
             LessonDAO lessonDAO,
@@ -33,7 +38,7 @@ public class StudentDashboardUI extends JDialog {
             StudentDAO studentDAO,
             SectionStudentDAO sectionStudentDAO
     ) {
-        // ❗ make dialog NON-modal
+        // Make dialog non-modal so controller can run after construction
         super((Frame) null, "Student Dashboard", false);
 
         this.student = student;
@@ -42,11 +47,18 @@ public class StudentDashboardUI extends JDialog {
         this.studentDAO = studentDAO;
         this.sectionStudentDAO = sectionStudentDAO;
 
-        setSize(800, 600);
+        setSize(900, 600);
         setLocationRelativeTo(null);
 
         buildUI();
-        // ❗ DO NOT call setVisible(true) here – Main will do it after controller is set up
+
+        // When user clicks the window close button, exit the program
+        addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosing(WindowEvent e) {
+                System.exit(0);
+            }
+        });
     }
 
     // -----------------------------------------------------
@@ -60,21 +72,35 @@ public class StudentDashboardUI extends JDialog {
                 BorderLayout.CENTER);
         add(top, BorderLayout.NORTH);
 
-        JSplitPane split = new JSplitPane(
+        // Top split: Lessons | Available Sections
+        JSplitPane topSplit = new JSplitPane(
                 JSplitPane.HORIZONTAL_SPLIT,
                 wrap("Lessons", lessonList),
                 wrap("Available Sections", availableSectionList)
         );
-        split.setResizeWeight(0.5);
+        topSplit.setResizeWeight(0.5);
 
-        JSplitPane split2 = new JSplitPane(
-                JSplitPane.VERTICAL_SPLIT,
-                split,
-                wrap("My Sections", mySectionList)
+        // Bottom split: My Sections | Section Details
+        sectionInfoArea.setEditable(false);
+        sectionInfoArea.setLineWrap(true);
+        sectionInfoArea.setWrapStyleWord(true);
+
+        JSplitPane bottomSplit = new JSplitPane(
+                JSplitPane.HORIZONTAL_SPLIT,
+                wrap("My Sections", mySectionList),
+                wrap("Section Details", new JScrollPane(sectionInfoArea))
         );
-        split2.setResizeWeight(0.7);
+        bottomSplit.setResizeWeight(0.5);
 
-        add(split2, BorderLayout.CENTER);
+        // Vertical split: [topSplit] over [bottomSplit]
+        JSplitPane mainSplit = new JSplitPane(
+                JSplitPane.VERTICAL_SPLIT,
+                topSplit,
+                bottomSplit
+        );
+        mainSplit.setResizeWeight(0.6);
+
+        add(mainSplit, BorderLayout.CENTER);
 
         JPanel bottom = new JPanel();
         bottom.add(addSectionBtn);
@@ -82,15 +108,15 @@ public class StudentDashboardUI extends JDialog {
         add(bottom, BorderLayout.SOUTH);
     }
 
-    private JPanel wrap(String title, JList<?> list) {
+    private JPanel wrap(String title, JComponent comp) {
         JPanel p = new JPanel(new BorderLayout());
         p.add(new JLabel(title), BorderLayout.NORTH);
-        p.add(new JScrollPane(list), BorderLayout.CENTER);
+        p.add(comp, BorderLayout.CENTER);
         return p;
     }
 
     // -----------------------------------------------------
-    // REQUIRED METHODS FOR CONTROLLER
+    // METHODS USED BY CONTROLLER
     // -----------------------------------------------------
 
     public void setLessonList(List<Lesson> lessons) {
@@ -127,6 +153,10 @@ public class StudentDashboardUI extends JDialog {
         lessonList.addListSelectionListener(l);
     }
 
+    public void onMySectionSelected(ListSelectionListener l) {
+        mySectionList.addListSelectionListener(l);
+    }
+
     public void onAddSection(java.awt.event.ActionListener l) {
         addSectionBtn.addActionListener(l);
     }
@@ -145,11 +175,24 @@ public class StudentDashboardUI extends JDialog {
         setMySections(mine);
     }
 
-    // Helper so controller can auto-select a lesson
+    // Helper so controller can auto-select first lesson
     public void selectFirstLesson() {
         ListModel<Lesson> model = lessonList.getModel();
         if (model.getSize() > 0) {
             lessonList.setSelectedIndex(0);
         }
+    }
+
+    // NEW: helper so controller can auto-select first "My Section"
+    public void selectFirstMySection() {
+        ListModel<Section> model = mySectionList.getModel();
+        if (model.getSize() > 0) {
+            mySectionList.setSelectedIndex(0);
+        }
+    }
+
+    // NEW: controller uses this to show section details
+    public void setSectionDetail(String text) {
+        sectionInfoArea.setText(text);
     }
 }

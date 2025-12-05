@@ -22,7 +22,7 @@ public class StudentDashboardController {
             StudentDashboardUI ui,
             LessonDAO lessonDAO,
             SectionDAO sectionDAO,
-            StudentDAO studentDAO,          // not stored, but kept for signature consistency
+            StudentDAO studentDAO,          // not stored, just for signature
             SectionStudentDAO sectionStudentDAO
     ) {
         this.student = student;
@@ -34,12 +34,20 @@ public class StudentDashboardController {
         // Initial data load
         initData();
 
-        // Wire listeners
+        // When lesson changes, reload available sections
         ui.onLessonSelected(e -> {
             if (!e.getValueIsAdjusting()) {
                 loadAvailableSections();
             }
         });
+
+        // When My Sections selection changes, reload detail panel
+        ui.onMySectionSelected(e -> {
+            if (!e.getValueIsAdjusting()) {
+                loadSectionDetail();
+            }
+        });
+
         ui.onAddSection(e -> addSection());
         ui.onDropSection(e -> dropSection());
     }
@@ -55,13 +63,17 @@ public class StudentDashboardController {
         // Load student's sections
         loadMySections();
 
-        // Auto-select the first lesson (if any) and load available sections
+        // Auto-select first lesson and load available sections
         if (!lessons.isEmpty()) {
             ui.selectFirstLesson();
             loadAvailableSections();
         } else {
             ui.setAvailableSections(List.of());
         }
+
+        // Auto-select first "My Section" and show details
+        ui.selectFirstMySection();
+        loadSectionDetail();
     }
 
     // -----------------------------------------------------
@@ -109,6 +121,41 @@ public class StudentDashboardController {
     }
 
     // -----------------------------------------------------
+    // SHOW SECTION DETAIL (RIGHT SIDE)
+    // -----------------------------------------------------
+    private void loadSectionDetail() {
+        Section s = ui.getSelectedMySection();
+        if (s == null) {
+            ui.setSectionDetail("No section selected.");
+            return;
+        }
+
+        Lesson lesson = lessonDAO.getLessonById(s.getLessonId());
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("Section Info\n");
+        sb.append("------------\n");
+        sb.append("Section ID: ").append(s.getSectionId()).append("\n");
+        sb.append("Name:       ").append(s.getSectionName()).append("\n");
+        sb.append("Room:       ").append(s.getRoom()).append("\n");
+        sb.append("Lesson ID:  ").append(s.getLessonId()).append("\n\n");
+
+        if (lesson != null) {
+            sb.append("Lesson Info\n");
+            sb.append("-----------\n");
+            sb.append("Title:      ").append(lesson.getTitle()).append("\n");
+            sb.append("Instrument: ").append(lesson.getInstrument()).append("\n");
+            sb.append("Start:      ").append(lesson.getStartTime()).append("\n");
+            sb.append("End:        ").append(lesson.getEndTime()).append("\n");
+            sb.append("Description:\n").append(lesson.getDescription()).append("\n");
+        } else {
+            sb.append("No lesson details found for this section.\n");
+        }
+
+        ui.setSectionDetail(sb.toString());
+    }
+
+    // -----------------------------------------------------
     // ADD SECTION
     // -----------------------------------------------------
     private void addSection() {
@@ -121,9 +168,10 @@ public class StudentDashboardController {
         );
 
         if (ok) {
-            // refresh both lists
             loadMySections();
             loadAvailableSections();
+            ui.selectFirstMySection();
+            loadSectionDetail();
         }
     }
 
@@ -140,9 +188,10 @@ public class StudentDashboardController {
         );
 
         if (ok) {
-            // refresh both lists
             loadMySections();
             loadAvailableSections();
+            ui.selectFirstMySection();
+            loadSectionDetail();
         }
     }
 }
