@@ -27,8 +27,9 @@ public class StudentDashboardUI extends JDialog {
 
     private final JButton addSectionBtn = new JButton("Add Section");
     private final JButton dropSectionBtn = new JButton("Drop Section");
+    private final JButton viewLibraryBtn = new JButton("View Library");   // NEW
 
-    // NEW: details area for selected section
+    // details area for selected section
     private final JTextArea sectionInfoArea = new JTextArea();
 
     public StudentDashboardUI(
@@ -105,6 +106,7 @@ public class StudentDashboardUI extends JDialog {
         JPanel bottom = new JPanel();
         bottom.add(addSectionBtn);
         bottom.add(dropSectionBtn);
+        bottom.add(viewLibraryBtn);      // NEW
         add(bottom, BorderLayout.SOUTH);
     }
 
@@ -165,6 +167,11 @@ public class StudentDashboardUI extends JDialog {
         dropSectionBtn.addActionListener(l);
     }
 
+    // NEW: hook for "View Library" button
+    public void onViewLibrary(java.awt.event.ActionListener l) {
+        viewLibraryBtn.addActionListener(l);
+    }
+
     public void refresh(
             List<Lesson> lessons,
             List<Section> available,
@@ -183,7 +190,7 @@ public class StudentDashboardUI extends JDialog {
         }
     }
 
-    // NEW: helper so controller can auto-select first "My Section"
+    // Helper so controller can auto-select first "My Section"
     public void selectFirstMySection() {
         ListModel<Section> model = mySectionList.getModel();
         if (model.getSize() > 0) {
@@ -191,7 +198,7 @@ public class StudentDashboardUI extends JDialog {
         }
     }
 
-    // NEW: controller uses this to show section details
+    // Controller uses this to show section details
     public void setSectionDetail(String text) {
         sectionInfoArea.setText(text);
     }

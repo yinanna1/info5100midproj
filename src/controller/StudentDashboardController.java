@@ -3,6 +3,7 @@ package controller;
 import dao.*;
 import model.*;
 import view.StudentDashboardUI;
+import view.LibraryStudentUI;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -50,6 +51,9 @@ public class StudentDashboardController {
 
         ui.onAddSection(e -> addSection());
         ui.onDropSection(e -> dropSection());
+
+        // NEW: open library viewer
+        ui.onViewLibrary(e -> openLibrary());
     }
 
     // -----------------------------------------------------
@@ -193,5 +197,14 @@ public class StudentDashboardController {
             ui.selectFirstMySection();
             loadSectionDetail();
         }
+    }
+
+    // -----------------------------------------------------
+    // OPEN LIBRARY VIEWER (READ-ONLY)
+    // -----------------------------------------------------
+    private void openLibrary() {
+        LibraryItemDAO libraryDAO = new LibraryItemDAO();
+        LibraryStudentUI libUI = new LibraryStudentUI(libraryDAO);
+        libUI.setVisible(true);
     }
 }
