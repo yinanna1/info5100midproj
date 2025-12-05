@@ -1,129 +1,138 @@
 package dao;
 
-import model.Section;
 import model.Student;
+import model.Section;
 
 import java.sql.*;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 public class SectionStudentDAO {
 
-    // ADD STUDENT TO SECTION
+    // ===============================================================
+    // MAPPERS
+    // ===============================================================
+
+    // Match StudentDAO: studentId, userId, and a placeholder name
+    private Student mapStudent(ResultSet rs) throws SQLException {
+        return new Student(
+                rs.getInt("studentId"),
+                rs.getInt("userId"),
+                "Student " + rs.getInt("studentId")  // same pattern as StudentDAO
+        );
+    }
+
+    // Section mapper matches your SectionDAO.map(...)
+    private Section mapSection(ResultSet rs) throws SQLException {
+        return new Section(
+                rs.getInt("sectionId"),
+                rs.getString("sectionName"),
+                rs.getInt("lessonId"),
+                rs.getInt("instructorId"),
+                rs.getInt("room")
+        );
+    }
+
+    // ===============================================================
+    // ENROLL / DROP
+    // ===============================================================
+
     public boolean addStudentToSection(int studentId, int sectionId) {
-        String sql = "INSERT INTO SectionStudent (studentId, sectionId) VALUES (?, ?)";
 
-        try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-
-            ps.setInt(1, studentId);
-            ps.setInt(2, sectionId);
-
-            return ps.executeUpdate() > 0;
-
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        return false;
-    }
-
-    // REMOVE STUDENT FROM SECTION
-    public boolean removeStudentFromSection(int studentId, int sectionId) {
-        String sql = "DELETE FROM SectionStudent WHERE studentId = ? AND sectionId = ?";
-
-        try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-
-            ps.setInt(1, studentId);
-            ps.setInt(2, sectionId);
-
-            return ps.executeUpdate() > 0;
-
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        return false;
-    }
-
-    // CHECK IF STUDENT ALREADY ENROLLED
-    public boolean isStudentInSection(int studentId, int sectionId) {
-        String sql = "SELECT 1 FROM SectionStudent WHERE studentId = ? AND sectionId = ?";
-
-        try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-
-            ps.setInt(1, studentId);
-            ps.setInt(2, sectionId);
-
-            ResultSet rs = ps.executeQuery();
-            return rs.next();
-
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        return false;
-    }
-
-    // ❗ REQUIRED BY CONTROLLERS
-    // GET ALL STUDENTS IN A SECTION
-    public List<Student> getStudentsBySection(int sectionId) {
-        List<Student> list = new ArrayList<>();
-
-        String sql =
-                "SELECT s.studentId, s.userId, u.userName " +
-                        "FROM SectionStudent ss " +
-                        "JOIN Student s ON ss.studentId = s.studentId " +
-                        "LEFT JOIN user u ON s.userId = u.userId " +
-                        "WHERE ss.sectionId = ?";
+        String sql = "INSERT INTO sectionstudent (sectionId, studentId) VALUES (?, ?)";
 
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
 
             ps.setInt(1, sectionId);
-            ResultSet rs = ps.executeQuery();
+            ps.setInt(2, studentId);
+            return ps.executeUpdate() > 0;
 
-            while (rs.next()) {
-                list.add(new Student(
-                        rs.getInt("studentId"),
-                        rs.getInt("userId"),
-                        rs.getString("userName")
-                ));
-            }
-
-        } catch (SQLException e) {
+        } catch (Exception e) {
             e.printStackTrace();
         }
-        return list;
+        return false;
     }
 
-    // ❗ REQUIRED BY MainController
-    // GET SECTIONS A STUDENT IS ENROLLED IN
-    public List<Section> getSectionsByStudent(int studentId) {
-        List<Section> list = new ArrayList<>();
+    public boolean dropStudentFromSection(int studentId, int sectionId) {
 
-        String sql =
-                "SELECT s.sectionId, s.sectionName, s.lessonId, s.instructorId, s.room " +
-                        "FROM SectionStudent ss " +
-                        "JOIN Section s ON ss.sectionId = s.sectionId " +
-                        "WHERE ss.studentId = ?";
+        String sql = "DELETE FROM sectionstudent WHERE studentId = ? AND sectionId = ?";
 
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
 
             ps.setInt(1, studentId);
-            ResultSet rs = ps.executeQuery();
+            ps.setInt(2, sectionId);
+            return ps.executeUpdate() > 0;
 
-            while (rs.next()) {
-                list.add(new Section(
-                        rs.getInt("sectionId"),
-                        rs.getString("sectionName"),
-                        rs.getInt("lessonId"),
-                        rs.getInt("instructorId"),
-                        rs.getInt("room")
-                ));
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
+    // ===============================================================
+    // QUERIES USED BY CONTROLLERS / UI
+    // ===============================================================
+
+    /**
+     * Get all students in a given section.
+     * Used by MainController, SectionDetailsController, InstructorDashboardUI, etc.
+     */
+    public List<Student> getStudentsBySection(int sectionId) {
+        List<Student> list = new ArrayList<>();
+
+        String sql = """
+            SELECT st.*
+            FROM student st
+            JOIN sectionstudent ss ON st.studentId = ss.studentId
+            WHERE ss.sectionId = ?
+        """;
+
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setInt(1, sectionId);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    list.add(mapStudent(rs));
+                }
             }
 
-        } catch (SQLException e) {
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return list;
+    }
+
+    /**
+     * (Optional, but useful) Get all sections a given student is enrolled in.
+     * This matches the method name that was originally used: getSectionsByStudent(int)
+     * in some controllers.
+     */
+    public List<Section> getSectionsByStudent(int studentId) {
+        List<Section> list = new ArrayList<>();
+
+        String sql = """
+            SELECT s.*
+            FROM section s
+            JOIN sectionstudent ss ON s.sectionId = ss.sectionId
+            WHERE ss.studentId = ?
+        """;
+
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setInt(1, studentId);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    list.add(mapSection(rs));
+                }
+            }
+
+        } catch (Exception e) {
             e.printStackTrace();
         }
 

@@ -33,7 +33,8 @@ public class StudentDashboardUI extends JDialog {
             StudentDAO studentDAO,
             SectionStudentDAO sectionStudentDAO
     ) {
-        super((Frame) null, "Student Dashboard", true);
+        // ❗ make dialog NON-modal
+        super((Frame) null, "Student Dashboard", false);
 
         this.student = student;
         this.lessonDAO = lessonDAO;
@@ -45,7 +46,7 @@ public class StudentDashboardUI extends JDialog {
         setLocationRelativeTo(null);
 
         buildUI();
-        setVisible(true);
+        // ❗ DO NOT call setVisible(true) here – Main will do it after controller is set up
     }
 
     // -----------------------------------------------------
@@ -132,5 +133,23 @@ public class StudentDashboardUI extends JDialog {
 
     public void onDropSection(java.awt.event.ActionListener l) {
         dropSectionBtn.addActionListener(l);
+    }
+
+    public void refresh(
+            List<Lesson> lessons,
+            List<Section> available,
+            List<Section> mine
+    ) {
+        setLessonList(lessons);
+        setAvailableSections(available);
+        setMySections(mine);
+    }
+
+    // Helper so controller can auto-select a lesson
+    public void selectFirstLesson() {
+        ListModel<Lesson> model = lessonList.getModel();
+        if (model.getSize() > 0) {
+            lessonList.setSelectedIndex(0);
+        }
     }
 }

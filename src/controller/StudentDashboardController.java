@@ -1,105 +1,148 @@
 package controller;
 
-import dao.LessonDAO;
-import dao.SectionDAO;
-import dao.StudentDAO;
-import dao.SectionStudentDAO;
-
-import model.Student;
-import model.Lesson;
-import model.Section;
-
+import dao.*;
+import model.*;
 import view.StudentDashboardUI;
 
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 public class StudentDashboardController {
 
     private final Student student;
     private final StudentDashboardUI ui;
-
     private final LessonDAO lessonDAO;
     private final SectionDAO sectionDAO;
-    private final StudentDAO studentDAO;
     private final SectionStudentDAO sectionStudentDAO;
 
-    // ======================================================
-    // CONSTRUCTOR — MUST MATCH 6 ARGUMENTS FROM MainController
-    // ======================================================
     public StudentDashboardController(
             Student student,
             StudentDashboardUI ui,
             LessonDAO lessonDAO,
             SectionDAO sectionDAO,
-            StudentDAO studentDAO,
+            StudentDAO studentDAO,          // not stored, but kept for signature consistency
             SectionStudentDAO sectionStudentDAO
     ) {
         this.student = student;
         this.ui = ui;
         this.lessonDAO = lessonDAO;
         this.sectionDAO = sectionDAO;
-        this.studentDAO = studentDAO;
         this.sectionStudentDAO = sectionStudentDAO;
 
-        loadLessons();
-        loadMySections();
+        // Initial data load
+        initData();
 
-        ui.onLessonSelected(e -> loadSectionsForSelectedLesson());
+        // Wire listeners
+        ui.onLessonSelected(e -> {
+            if (!e.getValueIsAdjusting()) {
+                loadAvailableSections();
+            }
+        });
         ui.onAddSection(e -> addSection());
         ui.onDropSection(e -> dropSection());
     }
 
-    // ======================================================
-    // LOAD ALL LESSONS TO CHOOSE FROM
-    // ======================================================
-    private void loadLessons() {
+    // -----------------------------------------------------
+    // INITIAL DATA
+    // -----------------------------------------------------
+    private void initData() {
+        // Load all lessons
         List<Lesson> lessons = lessonDAO.getAllLessons();
         ui.setLessonList(lessons);
+
+        // Load student's sections
+        loadMySections();
+
+        // Auto-select the first lesson (if any) and load available sections
+        if (!lessons.isEmpty()) {
+            ui.selectFirstLesson();
+            loadAvailableSections();
+        } else {
+            ui.setAvailableSections(List.of());
+        }
     }
 
-    // ======================================================
-    // LOAD SECTIONS FOR A SELECTED LESSON
-    // ======================================================
-    private void loadSectionsForSelectedLesson() {
-        Lesson lesson = ui.getSelectedLesson();
-        if (lesson == null) {
+    // -----------------------------------------------------
+    // LOAD AVAILABLE SECTIONS FOR SELECTED LESSON
+    // -----------------------------------------------------
+    private void loadAvailableSections() {
+        Lesson selected = ui.getSelectedLesson();
+        if (selected == null) {
             ui.setAvailableSections(List.of());
             return;
         }
 
-        List<Section> sections = sectionDAO.getSectionsByLesson(lesson.getLessonId());
-        ui.setAvailableSections(sections);
-    }
+        // All sections for this lesson
+        List<Section> allForLesson =
+                sectionDAO.getSectionsByLesson(selected.getLessonId());
 
-    // ======================================================
-    // ADD A SECTION (ENROLL STUDENT)
-    // ======================================================
-    private void addSection() {
-        Section section = ui.getSelectedAvailableSection();
-        if (section == null) return;
-
-        sectionStudentDAO.addStudentToSection(student.getStudentId(), section.getSectionId());
-        loadMySections();
-    }
-
-    // ======================================================
-    // REMOVE A SECTION (DROP STUDENT)
-    // ======================================================
-    private void dropSection() {
-        Section section = ui.getSelectedMySection();
-        if (section == null) return;
-
-        sectionStudentDAO.removeStudentFromSection(student.getStudentId(), section.getSectionId());
-        loadMySections();
-    }
-
-    // ======================================================
-    // LOAD CURRENTLY ENROLLED SECTIONS
-    // ======================================================
-    private void loadMySections() {
+        // Sections the student is already enrolled in
         List<Section> mySections =
-                sectionStudentDAO.getSectionsByStudent(student.getStudentId());
+                sectionDAO.getSectionsByStudentId(student.getStudentId());
 
-        ui.setMySections(mySections);
+        // Build a set of section IDs the student already has
+        Set<Integer> mySectionIds = new HashSet<>();
+        for (Section s : mySections) {
+            mySectionIds.add(s.getSectionId());
+        }
+
+        // Filter out sections the student is already in
+        List<Section> available = new ArrayList<>();
+        for (Section s : allForLesson) {
+            if (!mySectionIds.contains(s.getSectionId())) {
+                available.add(s);
+            }
+        }
+
+        ui.setAvailableSections(available);
+    }
+
+    // -----------------------------------------------------
+    // LOAD MY SECTIONS
+    // -----------------------------------------------------
+    private void loadMySections() {
+        ui.setMySections(
+                sectionDAO.getSectionsByStudentId(student.getStudentId())
+        );
+    }
+
+    // -----------------------------------------------------
+    // ADD SECTION
+    // -----------------------------------------------------
+    private void addSection() {
+        Section s = ui.getSelectedAvailableSection();
+        if (s == null) return;
+
+        boolean ok = sectionStudentDAO.addStudentToSection(
+                student.getStudentId(),
+                s.getSectionId()
+        );
+
+        if (ok) {
+            // refresh both lists
+            loadMySections();
+            loadAvailableSections();
+        }
+    }
+
+    // -----------------------------------------------------
+    // DROP SECTION
+    // -----------------------------------------------------
+    private void dropSection() {
+        Section s = ui.getSelectedMySection();
+        if (s == null) return;
+
+        boolean ok = sectionStudentDAO.dropStudentFromSection(
+                student.getStudentId(),
+                s.getSectionId()
+        );
+
+        if (ok) {
+            // refresh both lists
+            loadMySections();
+            loadAvailableSections();
+        }
     }
 }

@@ -3,10 +3,12 @@ import controller.StudentDashboardController;
 import dao.*;
 import model.User;
 import model.Student;
+import model.Instructor;
 
 import view.MainUI;
 import view.UserLoginUI;
 import view.StudentDashboardUI;
+import view.InstructorDashboardUI;
 
 import javax.swing.*;
 
@@ -53,8 +55,15 @@ public class Main {
             // -----------------------------------
             // ROLE ROUTING
             // -----------------------------------
+            String role = loggedIn.getRole();
+            if (role == null) {
+                JOptionPane.showMessageDialog(null,
+                        "Unknown role. Exiting.");
+                System.exit(0);
+            }
 
-            if (loggedIn.getRole().equalsIgnoreCase("admin")) {
+            // ADMIN → Main dashboard
+            if (role.equalsIgnoreCase("admin")) {
 
                 MainUI ui = new MainUI();
 
@@ -72,14 +81,10 @@ public class Main {
                 return;
             }
 
-            if (loggedIn.getRole().equalsIgnoreCase("student")) {
+            // STUDENT → Student dashboard
+            if (role.equalsIgnoreCase("student")) {
 
                 Student student = studentDAO.getStudentByUserId(loggedIn.getUserId());
-
-                if (student == null) {
-                    JOptionPane.showMessageDialog(null, "No student record found.");
-                    return;
-                }
 
                 StudentDashboardUI studentUI = new StudentDashboardUI(
                         student,
@@ -98,22 +103,32 @@ public class Main {
                         sectionStudentDAO
                 );
 
+                // ❗ now show it, after controller has populated the lists
+                studentUI.setVisible(true);
                 return;
             }
 
-            if (loggedIn.getRole().equalsIgnoreCase("instructor")) {
 
-                JOptionPane.showMessageDialog(
-                        null,
-                        "Instructor Dashboard not implemented yet."
+            // INSTRUCTOR → Instructor dashboard
+            if (role.equalsIgnoreCase("instructor")) {
+
+                Instructor instructor = instructorDAO.getInstructorByUserId(loggedIn.getUserId());
+
+                new InstructorDashboardUI(
+                        instructor,
+                        lessonDAO,
+                        sectionDAO,
+                        studentDAO,
+                        sectionStudentDAO
                 );
-
                 return;
             }
 
+            // FALLBACK: unknown role
             JOptionPane.showMessageDialog(null,
-                    "Unknown role: " + loggedIn.getRole());
+                    "Unknown role: " + role + ". Exiting.");
             System.exit(0);
         });
     }
 }
+

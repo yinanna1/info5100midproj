@@ -86,7 +86,7 @@ public class MainController {
     }
 
     // ===============================================================
-    // TAB 2: Teacher → Sections
+    // TAB 2: Instructor → Sections
     // ===============================================================
     private void loadSectionsForSelectedInstructor() {
         Instructor inst = ui.getSelectedInstructor();
@@ -123,7 +123,8 @@ public class MainController {
             return;
         }
 
-        List<Section> sections = sectionStudentDAO.getSectionsByStudent(student.getStudentId());
+        // FIXED: use SectionDAO.getSectionsByStudentId(...)
+        List<Section> sections = sectionDAO.getSectionsByStudentId(student.getStudentId());
         ui.setDetailList(sections, "Sections for student: " + student.getUserName());
     }
 

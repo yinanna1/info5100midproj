@@ -16,7 +16,7 @@ public class InstructorDAO {
         List<Instructor> list = new ArrayList<>();
 
         String sql = "SELECT i.instructorId, i.userId, u.userName " +
-                "FROM Instructor i " +
+                "FROM instructor i " +
                 "LEFT JOIN user u ON i.userId = u.userId";
 
         try (Connection conn = DatabaseConnection.getConnection();
@@ -42,7 +42,7 @@ public class InstructorDAO {
     // ============================================================
     public Instructor getInstructorById(int instructorId) {
         String sql = "SELECT i.instructorId, i.userId, u.userName " +
-                "FROM Instructor i " +
+                "FROM instructor i " +
                 "LEFT JOIN user u ON i.userId = u.userId " +
                 "WHERE i.instructorId = ?";
 
@@ -65,21 +65,26 @@ public class InstructorDAO {
         return null;
     }
 
+    // Used in MainController.handleLogin
     public Instructor getInstructorByUserId(int userId) {
-        String sql = "SELECT * FROM instructor WHERE userId = ?";
+        String sql = "SELECT i.instructorId, i.userId, u.userName " +
+                "FROM instructor i " +
+                "LEFT JOIN user u ON i.userId = u.userId " +
+                "WHERE i.userId = ?";
 
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
 
             ps.setInt(1, userId);
 
-            ResultSet rs = ps.executeQuery();
-            if (rs.next()) {
-                return new Instructor(
-                        rs.getInt("instructorId"),
-                        rs.getInt("userId"),
-                        rs.getString("userName")
-                );
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return new Instructor(
+                            rs.getInt("instructorId"),
+                            rs.getInt("userId"),
+                            rs.getString("userName")
+                    );
+                }
             }
 
         } catch (SQLException e) {
@@ -88,7 +93,6 @@ public class InstructorDAO {
 
         return null;
     }
-
 
     // ============================================================
     // VALIDATE ADMIN LOGIN
@@ -125,24 +129,8 @@ public class InstructorDAO {
         return null; // invalid login
     }
 
+    // Wrapper: keep the old method name but reuse the correct logic
     public Instructor getInstructor(int instructorId) {
-        try (Connection conn = DatabaseConnection.getConnection()) {
-            String sql = "SELECT * FROM instructor WHERE instructor_id=?";
-            PreparedStatement ps = conn.prepareStatement(sql);
-            ps.setInt(1, instructorId);
-
-            ResultSet rs = ps.executeQuery();
-            if (rs.next()) {
-                return new Instructor(
-                        rs.getInt("instructor_id"),
-                        rs.getInt("user_id"),
-                        rs.getString("name")
-                );
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        return null;
+        return getInstructorById(instructorId);
     }
-
 }

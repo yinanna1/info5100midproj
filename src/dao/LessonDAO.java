@@ -2,8 +2,7 @@ package dao;
 
 import model.Lesson;
 import java.sql.*;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 public class LessonDAO {
 
@@ -29,51 +28,9 @@ public class LessonDAO {
 
             while (rs.next()) list.add(map(rs));
 
-        } catch (SQLException e) { e.printStackTrace(); }
+        } catch (Exception e) { e.printStackTrace(); }
+
         return list;
-    }
-
-    public int createLesson(
-            int instructorId, String title, String instrument,
-            String startTime, String endTime, String description
-    ) {
-        String sql = """
-                INSERT INTO lesson
-                (instructorId, title, instrument, startTime, endTime, description)
-                VALUES (?, ?, ?, ?, ?, ?)
-                """;
-
-        try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-
-            ps.setInt(1, instructorId);
-            ps.setString(2, title);
-            ps.setString(3, instrument);
-            ps.setString(4, startTime);
-            ps.setString(5, endTime);
-            ps.setString(6, description);
-
-            ps.executeUpdate();
-
-            ResultSet keys = ps.getGeneratedKeys();
-            if (keys.next()) return keys.getInt(1);
-
-        } catch (SQLException e) { e.printStackTrace(); }
-
-        return -1;
-    }
-
-    public boolean deleteLesson(int id) {
-        String sql = "DELETE FROM lesson WHERE lessonId = ?";
-
-        try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-
-            ps.setInt(1, id);
-            return ps.executeUpdate() > 0;
-
-        } catch (SQLException e) { e.printStackTrace(); }
-        return false;
     }
 
     public Lesson getLessonById(int id) {
@@ -86,33 +43,69 @@ public class LessonDAO {
             ResultSet rs = ps.executeQuery();
             if (rs.next()) return map(rs);
 
-        } catch (SQLException e) { e.printStackTrace(); }
+        } catch (Exception e) { e.printStackTrace(); }
 
         return null;
     }
 
-    public Lesson getLesson(int lessonId) {
-        try (Connection conn = DatabaseConnection.getConnection()) {
-            String sql = "SELECT * FROM lesson WHERE lesson_id=?";
-            PreparedStatement ps = conn.prepareStatement(sql);
-            ps.setInt(1, lessonId);
+    // Create a new lesson and return its generated ID
+    public int createLesson(int instructorId,
+                            String title,
+                            String instrument,
+                            String start,
+                            String end,
+                            String desc) {
 
-            ResultSet rs = ps.executeQuery();
-            if (rs.next()) {
-                return new Lesson(
-                        rs.getInt("lesson_id"),
-                        rs.getInt("instructor_id"),
-                        rs.getString("title"),
-                        rs.getString("instrument"),
-                        rs.getString("start_time"),
-                        rs.getString("end_time"),
-                        rs.getString("description")
-                );
+        String sql = "INSERT INTO lesson " +
+                "(instructorId, title, instrument, startTime, endTime, description) " +
+                "VALUES (?, ?, ?, ?, ?, ?)";
+
+        int generatedId = -1;
+
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+
+            ps.setInt(1, instructorId);
+            ps.setString(2, title);
+            ps.setString(3, instrument);
+
+            // assumes start/end are in format "yyyy-MM-dd HH:mm:ss"
+            ps.setTimestamp(4, Timestamp.valueOf(start));
+            ps.setTimestamp(5, Timestamp.valueOf(end));
+
+            ps.setString(6, desc);
+
+            int affectedRows = ps.executeUpdate();
+            if (affectedRows > 0) {
+                try (ResultSet rs = ps.getGeneratedKeys()) {
+                    if (rs.next()) {
+                        generatedId = rs.getInt(1);
+                    }
+                }
             }
+
         } catch (Exception e) {
             e.printStackTrace();
         }
-        return null;
+
+        return generatedId;
+    }
+
+    // Delete a lesson by ID; returns true if something was deleted
+    public boolean deleteLesson(int id) {
+        String sql = "DELETE FROM lesson WHERE lessonId = ?";
+
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setInt(1, id);
+            return ps.executeUpdate() > 0;
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return false;
     }
 
 }
