@@ -8,6 +8,7 @@ import view.InstructorDashboardUI;
 import view.StudentDashboardUI;
 
 import javax.swing.*;
+import java.util.ArrayList;
 import java.util.List;
 
 public class MainController {
@@ -123,7 +124,7 @@ public class MainController {
             return;
         }
 
-        // FIXED: use SectionDAO.getSectionsByStudentId(...)
+        // Use SectionDAO.getSectionsByStudentId(...)
         List<Section> sections = sectionDAO.getSectionsByStudentId(student.getStudentId());
         ui.setDetailList(sections, "Sections for student: " + student.getUserName());
     }
@@ -155,6 +156,64 @@ public class MainController {
     }
 
     // ===============================================================
+    // HELPERS FOR STUDENT DASHBOARD
+    // ===============================================================
+
+    /**
+     * For the currently selected lesson in the given StudentDashboardUI,
+     * recompute:
+     *   - My Sections (for that lesson only)
+     *   - Available Sections (sections of that lesson the student is NOT in)
+     */
+    private void updateStudentSectionsForCurrentLesson(StudentDashboardUI sUI, Student student) {
+        Lesson currentLesson = sUI.getSelectedLesson();
+
+        if (currentLesson == null) {
+            // No lesson selected: show all student's sections in "My Sections"
+            List<Section> myAll = sectionDAO.getSectionsByStudentId(student.getStudentId());
+            sUI.setMySections(myAll);
+            sUI.setAvailableSections(List.of());
+            sUI.setSectionDetail("");
+            return;
+        }
+
+        int lessonId = currentLesson.getLessonId();
+
+        // All sections that belong to this lesson
+        List<Section> allForLesson = sectionDAO.getSectionsByLesson(lessonId);
+
+        // All sections this student is enrolled in (for any lesson)
+        List<Section> myAllSections = sectionDAO.getSectionsByStudentId(student.getStudentId());
+
+        // My sections for THIS lesson
+        List<Section> myForLesson = new ArrayList<>();
+        for (Section s : myAllSections) {
+            if (s.getLessonId() == lessonId) {
+                myForLesson.add(s);
+            }
+        }
+
+        // Available sections = allForLesson - myForLesson
+        List<Section> available = new ArrayList<>();
+        for (Section sec : allForLesson) {
+            boolean enrolled = false;
+            for (Section mine : myForLesson) {
+                if (mine.getSectionId() == sec.getSectionId()) {
+                    enrolled = true;
+                    break;
+                }
+            }
+            if (!enrolled) {
+                available.add(sec);
+            }
+        }
+
+        sUI.setMySections(myForLesson);
+        sUI.setAvailableSections(available);
+        sUI.setSectionDetail("");
+    }
+
+    // ===============================================================
     // LOGIN HANDLER (NOW TAKES User OBJECT)
     // ===============================================================
     public void handleLogin(User loggedIn) {
@@ -174,25 +233,83 @@ public class MainController {
                 Instructor instructor =
                         instructorDAO.getInstructorByUserId(loggedIn.getUserId());
 
-                new InstructorDashboardUI(
+                InstructorDashboardUI instUI = new InstructorDashboardUI(
                         instructor,
                         lessonDAO,
                         sectionDAO,
                         studentDAO,
                         sectionStudentDAO
                 );
+                instUI.setVisible(true);
             }
 
             case "student" -> {
                 Student student = studentDAO.getStudentByUserId(loggedIn.getUserId());
 
-                new StudentDashboardUI(
+                // Create the Student Dashboard
+                StudentDashboardUI sUI = new StudentDashboardUI(
                         student,
                         lessonDAO,
                         sectionDAO,
                         studentDAO,
                         sectionStudentDAO
                 );
+
+                // Load lessons list
+                List<Lesson> lessons = lessonDAO.getAllLessons();
+                sUI.setLessonList(lessons);
+
+                // Auto-select first lesson (if any) and compute sections
+                sUI.selectFirstLesson();
+                updateStudentSectionsForCurrentLesson(sUI, student);
+
+                // When the student changes the selected lesson, update lists
+                sUI.onLessonSelected(e -> {
+                    if (!e.getValueIsAdjusting()) {
+                        updateStudentSectionsForCurrentLesson(sUI, student);
+                    }
+                });
+
+                // Wire Drop Section button
+                sUI.onDropSection(e -> {
+                    Section selected = sUI.getSelectedMySection();
+                    if (selected == null) {
+                        JOptionPane.showMessageDialog(sUI,
+                                "Please select a section to drop.",
+                                "No Section Selected",
+                                JOptionPane.WARNING_MESSAGE);
+                        return;
+                    }
+
+                    int confirm = JOptionPane.showConfirmDialog(
+                            sUI,
+                            "Are you sure you want to drop section: " + selected.getSectionName() + "?",
+                            "Confirm Drop",
+                            JOptionPane.YES_NO_OPTION
+                    );
+                    if (confirm != JOptionPane.YES_OPTION) {
+                        return;
+                    }
+
+                    // DAO method signature is (sectionId, studentId)
+                    boolean ok = sectionStudentDAO.dropStudentFromSection(
+                            selected.getSectionId(),
+                            student.getStudentId()
+                    );
+
+                    if (!ok) {
+                        JOptionPane.showMessageDialog(sUI,
+                                "Failed to drop this section (you may not be enrolled, or an error occurred).",
+                                "Drop Failed",
+                                JOptionPane.ERROR_MESSAGE);
+                    }
+
+                    // Recompute "My Sections" and "Available Sections"
+                    updateStudentSectionsForCurrentLesson(sUI, student);
+                });
+
+                // Show the dashboard
+                sUI.setVisible(true);
             }
 
             default -> JOptionPane.showMessageDialog(null, "Unknown role.");

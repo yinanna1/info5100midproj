@@ -5,6 +5,7 @@ import model.*;
 import view.StudentDashboardUI;
 import view.LibraryStudentUI;
 
+import javax.swing.*;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -164,18 +165,39 @@ public class StudentDashboardController {
     // -----------------------------------------------------
     private void addSection() {
         Section s = ui.getSelectedAvailableSection();
-        if (s == null) return;
+        if (s == null) {
+            JOptionPane.showMessageDialog(ui,
+                    "Please select a section to add.",
+                    "No Section Selected",
+                    JOptionPane.WARNING_MESSAGE);
+            return;
+        }
 
-        boolean ok = sectionStudentDAO.addStudentToSection(
-                student.getStudentId(),
-                s.getSectionId()
-        );
+        try {
+            // ✅ CORRECT ORDER: (sectionId, studentId)
+            boolean ok = sectionStudentDAO.addStudentToSection(
+                    s.getSectionId(),
+                    student.getStudentId()
+            );
 
-        if (ok) {
+            if (!ok) {
+                JOptionPane.showMessageDialog(ui,
+                        "Could not enroll in this section.",
+                        "Add Failed",
+                        JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+
             loadMySections();
             loadAvailableSections();
             ui.selectFirstMySection();
             loadSectionDetail();
+        } catch (RuntimeException ex) {
+            ex.printStackTrace();
+            JOptionPane.showMessageDialog(ui,
+                    "Error adding section: " + ex.getMessage(),
+                    "Database Error",
+                    JOptionPane.ERROR_MESSAGE);
         }
     }
 
@@ -184,18 +206,49 @@ public class StudentDashboardController {
     // -----------------------------------------------------
     private void dropSection() {
         Section s = ui.getSelectedMySection();
-        if (s == null) return;
+        if (s == null) {
+            JOptionPane.showMessageDialog(ui,
+                    "Please select a section to drop.",
+                    "No Section Selected",
+                    JOptionPane.WARNING_MESSAGE);
+            return;
+        }
 
-        boolean ok = sectionStudentDAO.dropStudentFromSection(
-                student.getStudentId(),
-                s.getSectionId()
+        int confirm = JOptionPane.showConfirmDialog(
+                ui,
+                "Are you sure you want to drop section: " + s.getSectionName() + "?",
+                "Confirm Drop",
+                JOptionPane.YES_NO_OPTION
         );
+        if (confirm != JOptionPane.YES_OPTION) {
+            return;
+        }
 
-        if (ok) {
+        try {
+            // ✅ CORRECT ORDER: (sectionId, studentId)
+            boolean ok = sectionStudentDAO.dropStudentFromSection(
+                    s.getSectionId(),
+                    student.getStudentId()
+            );
+
+            if (!ok) {
+                JOptionPane.showMessageDialog(ui,
+                        "Could not drop this section.",
+                        "Drop Failed",
+                        JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+
             loadMySections();
             loadAvailableSections();
             ui.selectFirstMySection();
             loadSectionDetail();
+        } catch (RuntimeException ex) {
+            ex.printStackTrace();
+            JOptionPane.showMessageDialog(ui,
+                    "Error dropping section: " + ex.getMessage(),
+                    "Database Error",
+                    JOptionPane.ERROR_MESSAGE);
         }
     }
 

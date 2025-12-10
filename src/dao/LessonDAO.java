@@ -108,4 +108,32 @@ public class LessonDAO {
         return false;
     }
 
+    public Integer getLatestLessonIdBySection(int sectionId) {
+        String sql = """
+        SELECT lessonId
+        FROM Lesson
+        WHERE sectionId = ?
+        ORDER BY lessonId DESC
+        LIMIT 1
+    """;
+
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setInt(1, sectionId);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt("lessonId");
+                }
+            }
+
+        } catch (SQLException e) {
+            throw new RuntimeException("Failed to get latest lesson for section", e);
+        }
+
+        return null;
+    }
+
+
 }
