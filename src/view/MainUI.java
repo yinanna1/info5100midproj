@@ -3,7 +3,12 @@ package view;
 import model.*;
 import javax.swing.*;
 import javax.swing.event.ListSelectionListener;
+import javax.swing.border.EmptyBorder;
 import java.awt.*;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 public class MainUI extends JFrame {
@@ -12,6 +17,10 @@ public class MainUI extends JFrame {
 
     // === Admin Button ===
     public JButton editButton = new JButton("Edit");
+
+    // clock
+    private final JLabel clockLabel = new JLabel();
+    private javax.swing.Timer clockTimer;
 
     // ------------------------------------------------------------
     // TAB 1: Course → Sections
@@ -60,6 +69,16 @@ public class MainUI extends JFrame {
         setLocationRelativeTo(null);
 
         buildUI();
+        startClock();
+
+        // just in case, stop timer when closing
+        addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosing(WindowEvent e) {
+                if (clockTimer != null) clockTimer.stop();
+            }
+        });
+
         setVisible(true);
     }
 
@@ -68,10 +87,25 @@ public class MainUI extends JFrame {
     // ------------------------------------------------------------
     private void buildUI() {
 
-        // Top bar with Edit button
+        // Top bar with title, clock, Edit button
         JPanel topBar = new JPanel(new BorderLayout());
-        JPanel rightPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        topBar.setBackground(new Color(27, 28, 70)); // navy
+
+        JLabel titleLabel = new JLabel("  EMS Master–Detail Views");
+        titleLabel.setForeground(Color.WHITE);
+        titleLabel.setFont(new Font("SansSerif", Font.BOLD, 15));
+
+        clockLabel.setForeground(Color.WHITE);
+        clockLabel.setHorizontalAlignment(SwingConstants.RIGHT);
+        clockLabel.setBorder(new EmptyBorder(0, 0, 0, 10));
+
+        // right side: clock + Edit button
+        JPanel rightPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 3));
+        rightPanel.setOpaque(false);
+        rightPanel.add(clockLabel);
         rightPanel.add(editButton);
+
+        topBar.add(titleLabel, BorderLayout.WEST);
         topBar.add(rightPanel, BorderLayout.EAST);
 
         buildTabs();
@@ -80,6 +114,19 @@ public class MainUI extends JFrame {
         container.add(topBar, BorderLayout.NORTH);
         container.add(tabbedPane, BorderLayout.CENTER);
         setContentPane(container);
+    }
+
+    private void startClock() {
+        clockTimer = new javax.swing.Timer(1000, e -> updateClock());
+        clockTimer.start();
+        updateClock();
+    }
+
+    private void updateClock() {
+        LocalDateTime now = LocalDateTime.now();
+        clockLabel.setText(
+                now.format(DateTimeFormatter.ofPattern("EEE, MMM d yyyy  HH:mm:ss"))
+        );
     }
 
     // ------------------------------------------------------------

@@ -5,15 +5,21 @@ import dao.SectionDAO;
 import dao.LibraryItemDAO;
 
 import javax.swing.*;
+import javax.swing.border.EmptyBorder;
 import java.awt.*;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
 public class AdminDashboardUI extends JDialog {
 
     private final LessonDAO lessonDAO;
     private final SectionDAO sectionDAO;
     private final Runnable refreshCallback;
+
+    private JLabel clockLabel;
+    private javax.swing.Timer clockTimer;
 
     public AdminDashboardUI(LessonDAO lessonDAO, SectionDAO sectionDAO, Runnable refreshCallback) {
         // non-modal; MainController decides when to show it
@@ -22,9 +28,35 @@ public class AdminDashboardUI extends JDialog {
         this.sectionDAO = sectionDAO;
         this.refreshCallback = refreshCallback;
 
-        setSize(450, 400);
+        setSize(500, 420);
         setLocationRelativeTo(null);
-        setLayout(new GridLayout(5, 1, 10, 10));
+        setLayout(new BorderLayout());
+
+        // ============================
+        // TOP BAR: TITLE + CLOCK
+        // ============================
+        JPanel topBar = new JPanel(new BorderLayout());
+        topBar.setBackground(new Color(27, 28, 70)); // navy
+
+        JLabel titleLabel = new JLabel("  Admin Dashboard");
+        titleLabel.setForeground(Color.WHITE);
+        titleLabel.setFont(new Font("SansSerif", Font.BOLD, 16));
+
+        clockLabel = new JLabel();
+        clockLabel.setForeground(Color.WHITE);
+        clockLabel.setHorizontalAlignment(SwingConstants.RIGHT);
+        clockLabel.setBorder(new EmptyBorder(0, 0, 0, 10));
+
+        topBar.add(titleLabel, BorderLayout.WEST);
+        topBar.add(clockLabel, BorderLayout.EAST);
+
+        add(topBar, BorderLayout.NORTH);
+
+        // ============================
+        // CENTER: BUTTON GRID
+        // ============================
+        JPanel centerPanel = new JPanel(new GridLayout(5, 1, 10, 10));
+        centerPanel.setBorder(new EmptyBorder(20, 20, 20, 20));
 
         JButton createCourseBtn = new JButton("Create Course");
         JButton deleteCourseBtn = new JButton("Delete Course");
@@ -32,11 +64,13 @@ public class AdminDashboardUI extends JDialog {
         JButton deleteSectionBtn = new JButton("Delete Section");
         JButton manageLibraryBtn = new JButton("Manage Library");   // NEW
 
-        add(createCourseBtn);
-        add(deleteCourseBtn);
-        add(createSectionBtn);
-        add(deleteSectionBtn);
-        add(manageLibraryBtn);
+        centerPanel.add(createCourseBtn);
+        centerPanel.add(deleteCourseBtn);
+        centerPanel.add(createSectionBtn);
+        centerPanel.add(deleteSectionBtn);
+        centerPanel.add(manageLibraryBtn);
+
+        add(centerPanel, BorderLayout.CENTER);
 
         // =====================================================
         // CREATE COURSE (ONE POPUP WITH ALL FIELDS)
@@ -193,13 +227,28 @@ public class AdminDashboardUI extends JDialog {
             libUI.setVisible(true);
         });
 
-        // Close admin dashboard = exit whole program
+        // Close admin dashboard = stop clock + exit whole program
         addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosing(WindowEvent e) {
+                if (clockTimer != null) {
+                    clockTimer.stop();
+                }
                 System.exit(0);
             }
         });
+
+        // start clock last
+        clockTimer = new javax.swing.Timer(1000, e -> updateClock());
+        clockTimer.start();
+        updateClock();
+    }
+
+    private void updateClock() {
+        LocalDateTime now = LocalDateTime.now();
+        clockLabel.setText(
+                now.format(DateTimeFormatter.ofPattern("EEE, MMM d yyyy  HH:mm:ss"))
+        );
     }
 }
 

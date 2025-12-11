@@ -10,6 +10,8 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 public class InstructorDashboardUI extends JDialog {
@@ -29,6 +31,10 @@ public class InstructorDashboardUI extends JDialog {
     // details area for section + lesson info
     private final JTextArea infoArea = new JTextArea();
 
+    // clock
+    private final JLabel clockLabel = new JLabel();
+    private final javax.swing.Timer clockTimer;
+
     public InstructorDashboardUI(
             Instructor instructor,
             LessonDAO lessonDAO,
@@ -36,7 +42,7 @@ public class InstructorDashboardUI extends JDialog {
             StudentDAO studentDAO,
             SectionStudentDAO sectionStudentDAO
     ) {
-        super((Frame) null, "Instructor Dashboard", true);
+        super((Frame) null, "Instructor Dashboard", false);
 
         this.instructor = instructor;
         this.lessonDAO = lessonDAO;
@@ -44,7 +50,7 @@ public class InstructorDashboardUI extends JDialog {
         this.studentDAO = studentDAO;
         this.sectionStudentDAO = sectionStudentDAO;
 
-        setSize(700, 500);
+        setSize(900, 600);
         setLocationRelativeTo(null);
         setLayout(new BorderLayout());
 
@@ -53,21 +59,34 @@ public class InstructorDashboardUI extends JDialog {
         addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosing(WindowEvent e) {
+                clockTimer.stop();
                 System.exit(0);
             }
         });
 
         // ============================
-        // TOP: INSTRUCTOR INFO
+        // TOP: INSTRUCTOR INFO + CLOCK (navy bar)
         // ============================
+        JPanel topBar = new JPanel(new BorderLayout());
+        topBar.setBackground(new Color(27, 28, 70));
+
         String name = instructor.getUserName() != null
                 ? instructor.getUserName()
                 : ("Instructor " + instructor.getInstructorId());
+
         JLabel header = new JLabel(
-                "Instructor: " + name + " (ID: " + instructor.getInstructorId() + ")",
-                SwingConstants.CENTER
+                "  Instructor: " + name + " (ID: " + instructor.getInstructorId() + ")"
         );
-        add(header, BorderLayout.NORTH);
+        header.setForeground(Color.WHITE);
+
+        clockLabel.setForeground(Color.WHITE);
+        clockLabel.setHorizontalAlignment(SwingConstants.RIGHT);
+        clockLabel.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 10));
+
+        topBar.add(header, BorderLayout.WEST);
+        topBar.add(clockLabel, BorderLayout.EAST);
+
+        add(topBar, BorderLayout.NORTH);
 
         // ============================
         // CENTER: SECTIONS & STUDENTS
@@ -137,7 +156,21 @@ public class InstructorDashboardUI extends JDialog {
             sectionsList.setSelectedIndex(0);
         }
 
+        // start clock (after fields are initialized)
+        clockTimer = new javax.swing.Timer(1000, e -> updateClock());
+        clockTimer.start();
+        updateClock();
+
         setVisible(true);
+    }
+
+    // ============================
+    // CLOCK
+    // ============================
+    private void updateClock() {
+        LocalDateTime now = LocalDateTime.now();
+        String text = now.format(DateTimeFormatter.ofPattern("EEE, MMM d yyyy  HH:mm:ss"));
+        clockLabel.setText(text);
     }
 
     // ============================

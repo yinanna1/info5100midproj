@@ -10,7 +10,8 @@ import javax.swing.event.ListSelectionListener;
 import java.awt.*;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
-import java.util.ArrayList;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 public class StudentDashboardUI extends JDialog {
@@ -30,8 +31,11 @@ public class StudentDashboardUI extends JDialog {
     private final JButton dropSectionBtn = new JButton("Drop Section");
     private final JButton viewLibraryBtn = new JButton("View Library");
 
-    // details area for selected section
     private final JTextArea sectionInfoArea = new JTextArea();
+
+    // clock
+    private final JLabel clockLabel = new JLabel();
+    private final javax.swing.Timer clockTimer;
 
     public StudentDashboardUI(
             Student student,
@@ -40,7 +44,6 @@ public class StudentDashboardUI extends JDialog {
             StudentDAO studentDAO,
             SectionStudentDAO sectionStudentDAO
     ) {
-        // Make dialog non-modal so controller can run after construction
         super((Frame) null, "Student Dashboard", false);
 
         this.student = student;
@@ -51,44 +54,54 @@ public class StudentDashboardUI extends JDialog {
 
         setSize(900, 600);
         setLocationRelativeTo(null);
+        setLayout(new BorderLayout());
 
         buildUI();
 
-        // >>> DIRECTLY WIRE DROP BUTTON HERE <<<
-        dropSectionBtn.addActionListener(e -> handleDropSection());
+        // start clock
+        clockTimer = new javax.swing.Timer(1000, e -> updateClock());
+        clockTimer.start();
+        updateClock();
 
-        // When user clicks the window close button, exit the program
         addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosing(WindowEvent e) {
+                clockTimer.stop();
                 System.exit(0);
             }
         });
     }
 
     // -----------------------------------------------------
-    // BUILD UI LAYOUT
+    // BUILD UI
     // -----------------------------------------------------
     private void buildUI() {
-        setLayout(new BorderLayout());
-
+        // Top bar: logged in + clock
         JPanel top = new JPanel(new BorderLayout());
-        top.add(new JLabel("Logged in as: " + student.getUserName(), SwingConstants.CENTER),
-                BorderLayout.CENTER);
+        top.setBackground(new Color(27, 28, 70)); // navy bar
+
+        JLabel loggedIn = new JLabel("  Logged in as: " + student.getUserName());
+        loggedIn.setForeground(Color.WHITE);
+
+        clockLabel.setForeground(Color.WHITE);
+        clockLabel.setHorizontalAlignment(SwingConstants.RIGHT);
+        clockLabel.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 8));
+
+        top.add(loggedIn, BorderLayout.WEST);
+        top.add(clockLabel, BorderLayout.EAST);
         add(top, BorderLayout.NORTH);
 
-        // Top split: Lessons | Available Sections
+        // main area split panes
+        sectionInfoArea.setEditable(false);
+        sectionInfoArea.setLineWrap(true);
+        sectionInfoArea.setWrapStyleWord(true);
+
         JSplitPane topSplit = new JSplitPane(
                 JSplitPane.HORIZONTAL_SPLIT,
                 wrap("Lessons", lessonList),
                 wrap("Available Sections", availableSectionList)
         );
         topSplit.setResizeWeight(0.5);
-
-        // Bottom split: My Sections | Section Details
-        sectionInfoArea.setEditable(false);
-        sectionInfoArea.setLineWrap(true);
-        sectionInfoArea.setWrapStyleWord(true);
 
         JSplitPane bottomSplit = new JSplitPane(
                 JSplitPane.HORIZONTAL_SPLIT,
@@ -97,7 +110,6 @@ public class StudentDashboardUI extends JDialog {
         );
         bottomSplit.setResizeWeight(0.5);
 
-        // Vertical split: [topSplit] over [bottomSplit]
         JSplitPane mainSplit = new JSplitPane(
                 JSplitPane.VERTICAL_SPLIT,
                 topSplit,
@@ -107,6 +119,7 @@ public class StudentDashboardUI extends JDialog {
 
         add(mainSplit, BorderLayout.CENTER);
 
+        // bottom button bar – leave buttons with default look
         JPanel bottom = new JPanel();
         bottom.add(addSectionBtn);
         bottom.add(dropSectionBtn);
@@ -121,107 +134,15 @@ public class StudentDashboardUI extends JDialog {
         return p;
     }
 
-    // -----------------------------------------------------
-    // INTERNAL HELPERS
-    // -----------------------------------------------------
-
-    /**
-     * After any change (add/drop) recompute:
-     *  - My Sections for the currently selected lesson
-     *  - Available Sections for that lesson
-     */
-    private void refreshSectionsForCurrentLesson() {
-        Lesson selectedLesson = getSelectedLesson();
-
-        if (selectedLesson == null) {
-            // No lesson selected: show all student's sections, no available
-            List<Section> myAll = sectionDAO.getSectionsByStudentId(student.getStudentId());
-            setMySections(myAll);
-            setAvailableSections(List.of());
-            sectionInfoArea.setText("");
-            return;
-        }
-
-        int lessonId = selectedLesson.getLessonId();
-
-        // All sections belonging to this lesson
-        List<Section> allForLesson = sectionDAO.getSectionsByLesson(lessonId);
-
-        // All sections the student is enrolled in (any lesson)
-        List<Section> myAll = sectionDAO.getSectionsByStudentId(student.getStudentId());
-
-        // My sections for THIS lesson
-        List<Section> myForLesson = new ArrayList<>();
-        for (Section s : myAll) {
-            if (s.getLessonId() == lessonId) {
-                myForLesson.add(s);
-            }
-        }
-
-        // Available = allForLesson - myForLesson
-        List<Section> available = new ArrayList<>();
-        for (Section sec : allForLesson) {
-            boolean enrolled = false;
-            for (Section mine : myForLesson) {
-                if (mine.getSectionId() == sec.getSectionId()) {
-                    enrolled = true;
-                    break;
-                }
-            }
-            if (!enrolled) {
-                available.add(sec);
-            }
-        }
-
-        setMySections(myForLesson);
-        setAvailableSections(available);
-        sectionInfoArea.setText("");
-    }
-
-    /**
-     * Logic for dropping a section directly from this UI.
-     */
-    private void handleDropSection() {
-        Section selected = getSelectedMySection();
-        if (selected == null) {
-            JOptionPane.showMessageDialog(this,
-                    "Please select a section to drop.",
-                    "No Section Selected",
-                    JOptionPane.WARNING_MESSAGE);
-            return;
-        }
-
-        int confirm = JOptionPane.showConfirmDialog(
-                this,
-                "Are you sure you want to drop section: " + selected.getSectionName() + "?",
-                "Confirm Drop",
-                JOptionPane.YES_NO_OPTION
+    private void updateClock() {
+        LocalDateTime now = LocalDateTime.now();
+        clockLabel.setText(
+                now.format(DateTimeFormatter.ofPattern("EEE, MMM d yyyy  HH:mm:ss"))
         );
-        if (confirm != JOptionPane.YES_OPTION) {
-            return;
-        }
-
-        // DAO signature is (sectionId, studentId)
-        boolean ok = sectionStudentDAO.dropStudentFromSection(
-                selected.getSectionId(),
-                student.getStudentId()
-        );
-
-        if (!ok) {
-            JOptionPane.showMessageDialog(this,
-                    "Failed to drop this section (you may not be enrolled, or an error occurred).",
-                    "Drop Failed",
-                    JOptionPane.ERROR_MESSAGE);
-            return;
-        }
-
-        // Recompute My Sections and Available Sections so the dropped one
-        // disappears from My Sections and shows up in Available Sections.
-        refreshSectionsForCurrentLesson();
     }
 
     // -----------------------------------------------------
-    // METHODS USED BY CONTROLLER (still available)
+    // METHODS USED BY CONTROLLER
     // -----------------------------------------------------
 
     public void setLessonList(List<Lesson> lessons) {
@@ -267,8 +188,6 @@ public class StudentDashboardUI extends JDialog {
     }
 
     public void onDropSection(java.awt.event.ActionListener l) {
-        // external controllers can still add listeners,
-        // but we already have one internal listener wired in the constructor
         dropSectionBtn.addActionListener(l);
     }
 
