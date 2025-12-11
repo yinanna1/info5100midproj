@@ -19,7 +19,10 @@ public class UserLoginUI extends JDialog {
     public UserLoginUI() {
         setTitle("User Login");
         setModal(true);
-        setSize(480, 350);
+
+        // make the window bigger so the header title doesn't get truncated
+        setSize(700, 420);
+        setMinimumSize(new Dimension(700, 420));
         setLocationRelativeTo(null);
 
         // Main background
@@ -28,31 +31,37 @@ public class UserLoginUI extends JDialog {
         setContentPane(mainPanel);
 
         // =========================
-        // HEADER (banner with image)
+        // HEADER (banner with title + right image)
         // =========================
         JPanel headerPanel = new JPanel(new BorderLayout());
         headerPanel.setBorder(BorderFactory.createEmptyBorder(8, 12, 8, 12));
         headerPanel.setBackground(new Color(27, 28, 70)); // deep navy
 
-        // icon on the left
-        JLabel iconLabel = new JLabel();
-        URL imgUrl = getClass().getResource("/images/music.png"); // same path as before
-        if (imgUrl != null) {
-            ImageIcon icon = new ImageIcon(imgUrl);
-            Image scaled = icon.getImage().getScaledInstance(52, 52, Image.SCALE_SMOOTH);
-            iconLabel.setIcon(new ImageIcon(scaled));
-        }
-        iconLabel.setHorizontalAlignment(SwingConstants.CENTER);
-        iconLabel.setVerticalAlignment(SwingConstants.CENTER);
-        iconLabel.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 12));
-
-        // title text
+        // CENTER: title text
         JLabel titleLabel = new JLabel("Music Learning Education System", SwingConstants.CENTER);
         titleLabel.setForeground(Color.WHITE);
-        titleLabel.setFont(new Font("SansSerif", Font.BOLD, 20));
+        titleLabel.setFont(new Font("SansSerif", Font.BOLD, 22));
 
-        headerPanel.add(iconLabel, BorderLayout.WEST);
+        // RIGHT: musicbg.jpg
+        JLabel bgLabel = new JLabel();
+        URL bgImgUrl = getClass().getResource("/musicbg.jpg");
+        if (bgImgUrl != null) {
+            ImageIcon bgIcon = new ImageIcon(bgImgUrl);
+            Image scaledBg = bgIcon.getImage().getScaledInstance(140, 70, Image.SCALE_SMOOTH);
+            bgLabel.setIcon(new ImageIcon(scaledBg));
+        }
+        bgLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        bgLabel.setVerticalAlignment(SwingConstants.CENTER);
+        bgLabel.setBorder(BorderFactory.createEmptyBorder(0, 12, 0, 0));
+
+        // left spacer so title isn't glued to edge
+        JPanel leftSpacer = new JPanel();
+        leftSpacer.setOpaque(false);
+        leftSpacer.setPreferredSize(new Dimension(40, 1));
+
+        headerPanel.add(leftSpacer, BorderLayout.WEST);
         headerPanel.add(titleLabel, BorderLayout.CENTER);
+        headerPanel.add(bgLabel, BorderLayout.EAST);
 
         mainPanel.add(headerPanel, BorderLayout.NORTH);
 
@@ -60,7 +69,7 @@ public class UserLoginUI extends JDialog {
         // CENTER CARD (rounded panel)
         // =========================
         JPanel centerWrapper = new JPanel(new GridBagLayout());
-        centerWrapper.setOpaque(false); // show main background
+        centerWrapper.setOpaque(false);
         mainPanel.add(centerWrapper, BorderLayout.CENTER);
 
         RoundedPanel card = new RoundedPanel(22);
@@ -75,7 +84,7 @@ public class UserLoginUI extends JDialog {
 
         // welcome text
         JLabel welcomeLabel = new JLabel("Welcome back!");
-        welcomeLabel.setFont(new Font("SansSerif", Font.BOLD, 16));
+        welcomeLabel.setFont(new Font("SansSerif", Font.BOLD, 18));
         welcomeLabel.setForeground(new Color(27, 28, 70));
 
         JLabel subLabel = new JLabel("Please log in to continue.");
@@ -99,9 +108,9 @@ public class UserLoginUI extends JDialog {
 
         // Username row
         JLabel userLabel = new JLabel("Username:");
-        userLabel.setFont(new Font("SansSerif", Font.PLAIN, 13));
+        userLabel.setFont(new Font("SansSerif", Font.PLAIN, 14));
 
-        usernameField.setPreferredSize(new Dimension(220, 28));
+        usernameField.setPreferredSize(new Dimension(260, 28));
         usernameField.setFont(new Font("SansSerif", Font.PLAIN, 13));
 
         gbc.gridwidth = 1;
@@ -114,9 +123,9 @@ public class UserLoginUI extends JDialog {
 
         // Password row
         JLabel passLabel = new JLabel("Password:");
-        passLabel.setFont(new Font("SansSerif", Font.PLAIN, 13));
+        passLabel.setFont(new Font("SansSerif", Font.PLAIN, 14));
 
-        passwordField.setPreferredSize(new Dimension(220, 28));
+        passwordField.setPreferredSize(new Dimension(260, 28));
         passwordField.setFont(new Font("SansSerif", Font.PLAIN, 13));
 
         gbc.gridy = 4;
@@ -150,14 +159,12 @@ public class UserLoginUI extends JDialog {
         forgotBtn.setBorderPainted(false);
         forgotBtn.setForeground(new Color(76, 92, 197));
         forgotBtn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        forgotBtn.addActionListener(e -> {
-            JOptionPane.showMessageDialog(
-                    this,
-                    "Please contact the system administrator to reset your password.",
-                    "Forgot Password",
-                    JOptionPane.INFORMATION_MESSAGE
-            );
-        });
+        forgotBtn.addActionListener(e -> JOptionPane.showMessageDialog(
+                this,
+                "Please contact the system administrator to reset your password.",
+                "Forgot Password",
+                JOptionPane.INFORMATION_MESSAGE
+        ));
 
         gbc.gridy = 6;
         gbc.insets = new Insets(2, 4, 0, 4);
@@ -168,9 +175,7 @@ public class UserLoginUI extends JDialog {
         wrapConstraints.anchor = GridBagConstraints.CENTER;
         centerWrapper.add(card, wrapConstraints);
 
-        // =========================
-        // EXTRA LOGIN BUTTON AT BOTTOM
-        // =========================
+        // BOTTOM login button
         JButton footerLoginBtn = new JButton("Login");
         footerLoginBtn.setFont(new Font("SansSerif", Font.BOLD, 13));
         footerLoginBtn.setFocusPainted(false);
@@ -183,7 +188,7 @@ public class UserLoginUI extends JDialog {
 
         mainPanel.add(bottomPanel, BorderLayout.SOUTH);
 
-        // Make Enter key trigger login (card button)
+        // Enter key triggers card login button
         getRootPane().setDefaultButton(loginBtn);
     }
 
