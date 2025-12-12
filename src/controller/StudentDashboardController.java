@@ -5,7 +5,6 @@ import model.*;
 import view.StudentDashboardUI;
 import view.LibraryStudentUI;
 
-import javax.swing.*;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -18,6 +17,9 @@ public class StudentDashboardController {
     private final LessonDAO lessonDAO;
     private final SectionDAO sectionDAO;
     private final SectionStudentDAO sectionStudentDAO;
+
+    // NEW: for instructor name display
+    private final InstructorDAO instructorDAO = new InstructorDAO();
 
     public StudentDashboardController(
             Student student,
@@ -33,17 +35,25 @@ public class StudentDashboardController {
         this.sectionDAO = sectionDAO;
         this.sectionStudentDAO = sectionStudentDAO;
 
-        // Initial data load
         initData();
 
-        // When lesson changes, reload available sections
+        // Lesson selection: reload available sections + detail
         ui.onLessonSelected(e -> {
             if (!e.getValueIsAdjusting()) {
                 loadAvailableSections();
+                ui.selectFirstAvailableSection();
+                loadAvailableSectionDetail();
             }
         });
 
-        // When My Sections selection changes, reload detail panel
+        // Available section selection: show details
+        ui.onAvailableSectionSelected(e -> {
+            if (!e.getValueIsAdjusting()) {
+                loadAvailableSectionDetail();
+            }
+        });
+
+        // My section selection: update bottom details
         ui.onMySectionSelected(e -> {
             if (!e.getValueIsAdjusting()) {
                 loadSectionDetail();
@@ -52,82 +62,96 @@ public class StudentDashboardController {
 
         ui.onAddSection(e -> addSection());
         ui.onDropSection(e -> dropSection());
-
-        // NEW: open library viewer
         ui.onViewLibrary(e -> openLibrary());
     }
 
-    // -----------------------------------------------------
-    // INITIAL DATA
-    // -----------------------------------------------------
     private void initData() {
-        // Load all lessons
         List<Lesson> lessons = lessonDAO.getAllLessons();
         ui.setLessonList(lessons);
 
-        // Load student's sections
         loadMySections();
 
-        // Auto-select first lesson and load available sections
         if (!lessons.isEmpty()) {
             ui.selectFirstLesson();
             loadAvailableSections();
+            ui.selectFirstAvailableSection();
+            loadAvailableSectionDetail();
         } else {
             ui.setAvailableSections(List.of());
+            ui.setAvailableSectionDetail("No lessons found → no available sections.");
         }
 
-        // Auto-select first "My Section" and show details
         ui.selectFirstMySection();
         loadSectionDetail();
     }
 
-    // -----------------------------------------------------
-    // LOAD AVAILABLE SECTIONS FOR SELECTED LESSON
-    // -----------------------------------------------------
+    private void loadMySections() {
+        ui.setMySections(sectionDAO.getSectionsByStudentId(student.getStudentId()));
+    }
+
     private void loadAvailableSections() {
         Lesson selected = ui.getSelectedLesson();
         if (selected == null) {
             ui.setAvailableSections(List.of());
+            ui.setAvailableSectionDetail("No lesson selected.");
             return;
         }
 
-        // All sections for this lesson
-        List<Section> allForLesson =
-                sectionDAO.getSectionsByLesson(selected.getLessonId());
+        List<Section> allForLesson = sectionDAO.getSectionsByLesson(selected.getLessonId());
+        List<Section> mySections = sectionDAO.getSectionsByStudentId(student.getStudentId());
 
-        // Sections the student is already enrolled in
-        List<Section> mySections =
-                sectionDAO.getSectionsByStudentId(student.getStudentId());
+        Set<Integer> myIds = new HashSet<>();
+        for (Section s : mySections) myIds.add(s.getSectionId());
 
-        // Build a set of section IDs the student already has
-        Set<Integer> mySectionIds = new HashSet<>();
-        for (Section s : mySections) {
-            mySectionIds.add(s.getSectionId());
-        }
-
-        // Filter out sections the student is already in
         List<Section> available = new ArrayList<>();
         for (Section s : allForLesson) {
-            if (!mySectionIds.contains(s.getSectionId())) {
-                available.add(s);
-            }
+            if (!myIds.contains(s.getSectionId())) available.add(s);
         }
 
         ui.setAvailableSections(available);
+
+        if (available.isEmpty()) {
+            ui.setAvailableSectionDetail("No available sections for this lesson.");
+        }
     }
 
-    // -----------------------------------------------------
-    // LOAD MY SECTIONS
-    // -----------------------------------------------------
-    private void loadMySections() {
-        ui.setMySections(
-                sectionDAO.getSectionsByStudentId(student.getStudentId())
-        );
+    private void loadAvailableSectionDetail() {
+        Section s = ui.getSelectedAvailableSection();
+        if (s == null) {
+            ui.setAvailableSectionDetail("Select an available section to see details.");
+            return;
+        }
+
+        Lesson lesson = lessonDAO.getLessonById(s.getLessonId());
+
+        // NEW: instructor name
+        Instructor inst = instructorDAO.getInstructor(s.getInstructorId());
+        String instName = (inst != null && inst.getUserName() != null)
+                ? inst.getUserName()
+                : "Unknown";
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("Section Info\n");
+        sb.append("------------\n");
+        sb.append("Section ID:    ").append(s.getSectionId()).append("\n");
+        sb.append("Name:          ").append(s.getSectionName()).append("\n");
+        sb.append("Room:          ").append(s.getRoom()).append("\n");
+        sb.append("Lesson ID:     ").append(s.getLessonId()).append("\n");
+        sb.append("Instructor ID: ").append(s.getInstructorId()).append("\n");
+        sb.append("Instructor:    ").append(instName).append("\n\n");
+
+        if (lesson != null) {
+            sb.append("Lesson Info\n");
+            sb.append("-----------\n");
+            sb.append("Title:      ").append(lesson.getTitle()).append("\n");
+            sb.append("Instrument: ").append(lesson.getInstrument()).append("\n");
+            sb.append("Start:      ").append(lesson.getStartTime()).append("\n");
+            sb.append("End:        ").append(lesson.getEndTime()).append("\n");
+        }
+
+        ui.setAvailableSectionDetail(sb.toString());
     }
 
-    // -----------------------------------------------------
-    // SHOW SECTION DETAIL (RIGHT SIDE)
-    // -----------------------------------------------------
     private void loadSectionDetail() {
         Section s = ui.getSelectedMySection();
         if (s == null) {
@@ -137,13 +161,21 @@ public class StudentDashboardController {
 
         Lesson lesson = lessonDAO.getLessonById(s.getLessonId());
 
+        // NEW: instructor name
+        Instructor inst = instructorDAO.getInstructor(s.getInstructorId());
+        String instName = (inst != null && inst.getUserName() != null)
+                ? inst.getUserName()
+                : "Unknown";
+
         StringBuilder sb = new StringBuilder();
         sb.append("Section Info\n");
         sb.append("------------\n");
-        sb.append("Section ID: ").append(s.getSectionId()).append("\n");
-        sb.append("Name:       ").append(s.getSectionName()).append("\n");
-        sb.append("Room:       ").append(s.getRoom()).append("\n");
-        sb.append("Lesson ID:  ").append(s.getLessonId()).append("\n\n");
+        sb.append("Section ID:    ").append(s.getSectionId()).append("\n");
+        sb.append("Name:          ").append(s.getSectionName()).append("\n");
+        sb.append("Room:          ").append(s.getRoom()).append("\n");
+        sb.append("Lesson ID:     ").append(s.getLessonId()).append("\n");
+        sb.append("Instructor ID: ").append(s.getInstructorId()).append("\n");
+        sb.append("Instructor:    ").append(instName).append("\n\n");
 
         if (lesson != null) {
             sb.append("Lesson Info\n");
@@ -160,101 +192,44 @@ public class StudentDashboardController {
         ui.setSectionDetail(sb.toString());
     }
 
-    // -----------------------------------------------------
-    // ADD SECTION
-    // -----------------------------------------------------
     private void addSection() {
         Section s = ui.getSelectedAvailableSection();
-        if (s == null) {
-            JOptionPane.showMessageDialog(ui,
-                    "Please select a section to add.",
-                    "No Section Selected",
-                    JOptionPane.WARNING_MESSAGE);
-            return;
-        }
+        if (s == null) return;
 
-        try {
-            // ✅ CORRECT ORDER: (sectionId, studentId)
-            boolean ok = sectionStudentDAO.addStudentToSection(
-                    s.getSectionId(),
-                    student.getStudentId()
-            );
+        boolean ok = sectionStudentDAO.addStudentToSection(
+                s.getSectionId(),
+                student.getStudentId()
+        );
 
-            if (!ok) {
-                JOptionPane.showMessageDialog(ui,
-                        "Could not enroll in this section.",
-                        "Add Failed",
-                        JOptionPane.ERROR_MESSAGE);
-                return;
-            }
-
+        if (ok) {
             loadMySections();
             loadAvailableSections();
             ui.selectFirstMySection();
             loadSectionDetail();
-        } catch (RuntimeException ex) {
-            ex.printStackTrace();
-            JOptionPane.showMessageDialog(ui,
-                    "Error adding section: " + ex.getMessage(),
-                    "Database Error",
-                    JOptionPane.ERROR_MESSAGE);
+            ui.selectFirstAvailableSection();
+            loadAvailableSectionDetail();
         }
     }
 
-    // -----------------------------------------------------
-    // DROP SECTION
-    // -----------------------------------------------------
     private void dropSection() {
         Section s = ui.getSelectedMySection();
-        if (s == null) {
-            JOptionPane.showMessageDialog(ui,
-                    "Please select a section to drop.",
-                    "No Section Selected",
-                    JOptionPane.WARNING_MESSAGE);
-            return;
-        }
+        if (s == null) return;
 
-        int confirm = JOptionPane.showConfirmDialog(
-                ui,
-                "Are you sure you want to drop section: " + s.getSectionName() + "?",
-                "Confirm Drop",
-                JOptionPane.YES_NO_OPTION
+        boolean ok = sectionStudentDAO.dropStudentFromSection(
+                s.getSectionId(),
+                student.getStudentId()
         );
-        if (confirm != JOptionPane.YES_OPTION) {
-            return;
-        }
 
-        try {
-            // ✅ CORRECT ORDER: (sectionId, studentId)
-            boolean ok = sectionStudentDAO.dropStudentFromSection(
-                    s.getSectionId(),
-                    student.getStudentId()
-            );
-
-            if (!ok) {
-                JOptionPane.showMessageDialog(ui,
-                        "Could not drop this section.",
-                        "Drop Failed",
-                        JOptionPane.ERROR_MESSAGE);
-                return;
-            }
-
+        if (ok) {
             loadMySections();
             loadAvailableSections();
             ui.selectFirstMySection();
             loadSectionDetail();
-        } catch (RuntimeException ex) {
-            ex.printStackTrace();
-            JOptionPane.showMessageDialog(ui,
-                    "Error dropping section: " + ex.getMessage(),
-                    "Database Error",
-                    JOptionPane.ERROR_MESSAGE);
+            ui.selectFirstAvailableSection();
+            loadAvailableSectionDetail();
         }
     }
 
-    // -----------------------------------------------------
-    // OPEN LIBRARY VIEWER (READ-ONLY)
-    // -----------------------------------------------------
     private void openLibrary() {
         LibraryItemDAO libraryDAO = new LibraryItemDAO();
         LibraryStudentUI libUI = new LibraryStudentUI(libraryDAO);

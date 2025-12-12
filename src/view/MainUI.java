@@ -28,6 +28,8 @@ public class MainUI extends JFrame {
     private final JList<Lesson> courseLessonList = new JList<>(new DefaultListModel<>());
     private final JList<Object> courseSectionList = new JList<>(new DefaultListModel<>());
     private final JLabel courseDetailLabel = new JLabel("Sections for Selected Course");
+    private final JTextArea courseLessonDetailArea = new JTextArea();    // NEW: lesson details
+    private final JTextArea courseSectionDetailArea = new JTextArea();   // NEW: section details
 
     // ------------------------------------------------------------
     // TAB 2: Teacher → Sections
@@ -71,7 +73,6 @@ public class MainUI extends JFrame {
         buildUI();
         startClock();
 
-        // just in case, stop timer when closing
         addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosing(WindowEvent e) {
@@ -99,7 +100,6 @@ public class MainUI extends JFrame {
         clockLabel.setHorizontalAlignment(SwingConstants.RIGHT);
         clockLabel.setBorder(new EmptyBorder(0, 0, 0, 10));
 
-        // right side: clock + Edit button
         JPanel rightPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 3));
         rightPanel.setOpaque(false);
         rightPanel.add(clockLabel);
@@ -140,8 +140,100 @@ public class MainUI extends JFrame {
         tabbedPane.addTab("Section Detail (All Info)", buildSectionDetailTab());
     }
 
+    // ======= COURSE TAB WITH LESSON + SECTION DETAIL =======
     private JPanel buildCourseTab() {
-        return splitPanel("Courses", courseLessonList, courseDetailLabel, courseSectionList);
+        JPanel panel = new JPanel(new BorderLayout());
+
+        // ----- Left side: lessons list + lesson detail -----
+        courseLessonDetailArea.setEditable(false);
+        courseLessonDetailArea.setLineWrap(true);
+        courseLessonDetailArea.setWrapStyleWord(true);
+        courseLessonDetailArea.setText("Select a course to see details.");
+
+        JPanel lessonListPanel = wrapListWithTitle("Courses", courseLessonList);
+        JPanel lessonDetailPanel = wrapText("Course Details", courseLessonDetailArea);
+
+        JSplitPane leftSplit = new JSplitPane(
+                JSplitPane.VERTICAL_SPLIT,
+                lessonListPanel,
+                lessonDetailPanel
+        );
+        leftSplit.setResizeWeight(0.6);
+
+        // ----- Right side: sections list + section detail -----
+        courseSectionDetailArea.setEditable(false);
+        courseSectionDetailArea.setLineWrap(true);
+        courseSectionDetailArea.setWrapStyleWord(true);
+        courseSectionDetailArea.setText("Select a section to see details.");
+
+        JPanel sectionListPanel = wrapListWithTitle(courseDetailLabel, courseSectionList);
+        JPanel sectionDetailPanel = wrapText("Section Details", courseSectionDetailArea);
+
+        JSplitPane rightSplit = new JSplitPane(
+                JSplitPane.VERTICAL_SPLIT,
+                sectionListPanel,
+                sectionDetailPanel
+        );
+        rightSplit.setResizeWeight(0.6);
+
+        // Main split: left vs right
+        JSplitPane mainSplit = new JSplitPane(
+                JSplitPane.HORIZONTAL_SPLIT,
+                leftSplit,
+                rightSplit
+        );
+        mainSplit.setResizeWeight(0.5);
+
+        // listeners for clicking items
+        courseLessonList.addListSelectionListener(e -> {
+            if (!e.getValueIsAdjusting()) {
+                updateCourseLessonDetail();
+            }
+        });
+
+        courseSectionList.addListSelectionListener(e -> {
+            if (!e.getValueIsAdjusting()) {
+                updateCourseSectionDetail();
+            }
+        });
+
+        panel.add(mainSplit, BorderLayout.CENTER);
+        return panel;
+    }
+
+    private void updateCourseLessonDetail() {
+        Lesson lesson = courseLessonList.getSelectedValue();
+        if (lesson == null) {
+            courseLessonDetailArea.setText("No course selected.");
+            return;
+        }
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("Lesson ID: ").append(lesson.getLessonId()).append("\n");
+        sb.append("Title:      ").append(lesson.getTitle()).append("\n");
+        sb.append("Instrument: ").append(lesson.getInstrument()).append("\n");
+        sb.append("Start:      ").append(lesson.getStartTime()).append("\n");
+        sb.append("End:        ").append(lesson.getEndTime()).append("\n");
+        sb.append("Description:\n").append(lesson.getDescription()).append("\n");
+
+        courseLessonDetailArea.setText(sb.toString());
+    }
+
+    private void updateCourseSectionDetail() {
+        Object sel = courseSectionList.getSelectedValue();
+        if (sel instanceof Section sec) {
+            StringBuilder sb = new StringBuilder();
+            sb.append("Section ID:   ").append(sec.getSectionId()).append("\n");
+            sb.append("Name:         ").append(sec.getSectionName()).append("\n");
+            sb.append("Lesson ID:    ").append(sec.getLessonId()).append("\n");
+            sb.append("Instructor ID:").append(sec.getInstructorId()).append("\n");
+            sb.append("Room:         ").append(sec.getRoom()).append("\n");
+            courseSectionDetailArea.setText(sb.toString());
+        } else if (sel != null) {
+            courseSectionDetailArea.setText(sel.toString());
+        } else {
+            courseSectionDetailArea.setText("No section selected.");
+        }
     }
 
     private JPanel buildTeacherTab() {

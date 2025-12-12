@@ -7,6 +7,7 @@ import model.Student;
 
 import javax.swing.*;
 import javax.swing.event.ListSelectionListener;
+import javax.swing.border.EmptyBorder;
 import java.awt.*;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
@@ -22,20 +23,23 @@ public class StudentDashboardUI extends JDialog {
     private final StudentDAO studentDAO;
     private final SectionStudentDAO sectionStudentDAO;
 
-    // UI components
+    // lists
     private final JList<Lesson> lessonList = new JList<>(new DefaultListModel<>());
     private final JList<Section> availableSectionList = new JList<>(new DefaultListModel<>());
     private final JList<Section> mySectionList = new JList<>(new DefaultListModel<>());
 
+    // buttons
     private final JButton addSectionBtn = new JButton("Add Section");
     private final JButton dropSectionBtn = new JButton("Drop Section");
     private final JButton viewLibraryBtn = new JButton("View Library");
 
-    private final JTextArea sectionInfoArea = new JTextArea();
+    // details
+    private final JTextArea sectionInfoArea = new JTextArea();              // bottom-right (My Section)
+    private final JTextArea availableSectionDetailArea = new JTextArea();   // top-right (Available Section Details)
 
     // clock
     private final JLabel clockLabel = new JLabel();
-    private final javax.swing.Timer clockTimer;
+    private javax.swing.Timer clockTimer;
 
     public StudentDashboardUI(
             Student student,
@@ -52,74 +56,82 @@ public class StudentDashboardUI extends JDialog {
         this.studentDAO = studentDAO;
         this.sectionStudentDAO = sectionStudentDAO;
 
-        setSize(900, 600);
+        setSize(1000, 600); // a bit wider to fit 3 columns nicely
         setLocationRelativeTo(null);
-        setLayout(new BorderLayout());
 
         buildUI();
-
-        // start clock
-        clockTimer = new javax.swing.Timer(1000, e -> updateClock());
-        clockTimer.start();
-        updateClock();
 
         addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosing(WindowEvent e) {
-                clockTimer.stop();
+                if (clockTimer != null) clockTimer.stop();
                 System.exit(0);
             }
         });
+
+        clockTimer = new javax.swing.Timer(1000, e -> updateClock());
+        clockTimer.start();
+        updateClock();
+
+        setVisible(true);
     }
 
     // -----------------------------------------------------
-    // BUILD UI
+    // BUILD UI LAYOUT
     // -----------------------------------------------------
     private void buildUI() {
-        // Top bar: logged in + clock
-        JPanel top = new JPanel(new BorderLayout());
-        top.setBackground(new Color(27, 28, 70)); // navy bar
+        setLayout(new BorderLayout());
 
-        JLabel loggedIn = new JLabel("  Logged in as: " + student.getUserName());
-        loggedIn.setForeground(Color.WHITE);
+        // -------- top bar with name + clock -----------
+        JPanel topBar = new JPanel(new BorderLayout());
+        topBar.setBackground(new Color(27, 28, 70)); // navy
+
+        JLabel nameLabel = new JLabel("  Logged in as: " + student.getUserName());
+        nameLabel.setForeground(Color.WHITE);
 
         clockLabel.setForeground(Color.WHITE);
         clockLabel.setHorizontalAlignment(SwingConstants.RIGHT);
-        clockLabel.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 8));
+        clockLabel.setBorder(new EmptyBorder(0, 0, 0, 10));
 
-        top.add(loggedIn, BorderLayout.WEST);
-        top.add(clockLabel, BorderLayout.EAST);
-        add(top, BorderLayout.NORTH);
+        topBar.add(nameLabel, BorderLayout.WEST);
+        topBar.add(clockLabel, BorderLayout.EAST);
+        add(topBar, BorderLayout.NORTH);
 
-        // main area split panes
-        sectionInfoArea.setEditable(false);
-        sectionInfoArea.setLineWrap(true);
-        sectionInfoArea.setWrapStyleWord(true);
+        // style text areas
+        configureArea(sectionInfoArea);
+        configureArea(availableSectionDetailArea);
+        availableSectionDetailArea.setText("Select an available section to see details.");
 
-        JSplitPane topSplit = new JSplitPane(
-                JSplitPane.HORIZONTAL_SPLIT,
-                wrap("Lessons", lessonList),
-                wrap("Available Sections", availableSectionList)
-        );
-        topSplit.setResizeWeight(0.5);
+        // ---------- TOP: 3 columns ----------
+        JPanel lessonsPanel = wrap("Lessons", new JScrollPane(lessonList));
+        JPanel availablePanel = wrap("Available Sections", new JScrollPane(availableSectionList));
+        JPanel availableDetailPanel = wrap("Available Section Details", new JScrollPane(availableSectionDetailArea));
 
+        JSplitPane split12 = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, lessonsPanel, availablePanel);
+        split12.setResizeWeight(0.33);
+
+        JSplitPane topThree = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, split12, availableDetailPanel);
+        topThree.setResizeWeight(0.66); // first 2 columns together take ~2/3, details is ~1/3
+
+        // ---------- BOTTOM: My Sections | Section Details ----------
         JSplitPane bottomSplit = new JSplitPane(
                 JSplitPane.HORIZONTAL_SPLIT,
-                wrap("My Sections", mySectionList),
+                wrap("My Sections", new JScrollPane(mySectionList)),
                 wrap("Section Details", new JScrollPane(sectionInfoArea))
         );
-        bottomSplit.setResizeWeight(0.5);
+        bottomSplit.setResizeWeight(0.4);
 
+        // ---------- Vertical main split ----------
         JSplitPane mainSplit = new JSplitPane(
                 JSplitPane.VERTICAL_SPLIT,
-                topSplit,
+                topThree,
                 bottomSplit
         );
-        mainSplit.setResizeWeight(0.6);
+        mainSplit.setResizeWeight(0.55);
 
         add(mainSplit, BorderLayout.CENTER);
 
-        // bottom button bar – leave buttons with default look
+        // ---------- bottom buttons ----------
         JPanel bottom = new JPanel();
         bottom.add(addSectionBtn);
         bottom.add(dropSectionBtn);
@@ -127,18 +139,28 @@ public class StudentDashboardUI extends JDialog {
         add(bottom, BorderLayout.SOUTH);
     }
 
+    private void configureArea(JTextArea area) {
+        area.setEditable(false);
+        area.setLineWrap(true);
+        area.setWrapStyleWord(true);
+    }
+
     private JPanel wrap(String title, JComponent comp) {
         JPanel p = new JPanel(new BorderLayout());
-        p.add(new JLabel(title), BorderLayout.NORTH);
+        JLabel label = new JLabel(title);
+        label.setBorder(BorderFactory.createEmptyBorder(4, 4, 4, 4));
+        p.add(label, BorderLayout.NORTH);
         p.add(comp, BorderLayout.CENTER);
         return p;
     }
 
+    // -----------------------------------------------------
+    // CLOCK
+    // -----------------------------------------------------
     private void updateClock() {
         LocalDateTime now = LocalDateTime.now();
-        clockLabel.setText(
-                now.format(DateTimeFormatter.ofPattern("EEE, MMM d yyyy  HH:mm:ss"))
-        );
+        String text = now.format(DateTimeFormatter.ofPattern("EEE, MMM d yyyy  HH:mm:ss"));
+        clockLabel.setText(text);
     }
 
     // -----------------------------------------------------
@@ -179,6 +201,10 @@ public class StudentDashboardUI extends JDialog {
         lessonList.addListSelectionListener(l);
     }
 
+    public void onAvailableSectionSelected(ListSelectionListener l) {
+        availableSectionList.addListSelectionListener(l);
+    }
+
     public void onMySectionSelected(ListSelectionListener l) {
         mySectionList.addListSelectionListener(l);
     }
@@ -195,31 +221,23 @@ public class StudentDashboardUI extends JDialog {
         viewLibraryBtn.addActionListener(l);
     }
 
-    public void refresh(
-            List<Lesson> lessons,
-            List<Section> available,
-            List<Section> mine
-    ) {
-        setLessonList(lessons);
-        setAvailableSections(available);
-        setMySections(mine);
+    public void selectFirstLesson() {
+        if (lessonList.getModel().getSize() > 0) lessonList.setSelectedIndex(0);
     }
 
-    public void selectFirstLesson() {
-        ListModel<Lesson> model = lessonList.getModel();
-        if (model.getSize() > 0) {
-            lessonList.setSelectedIndex(0);
-        }
+    public void selectFirstAvailableSection() {
+        if (availableSectionList.getModel().getSize() > 0) availableSectionList.setSelectedIndex(0);
     }
 
     public void selectFirstMySection() {
-        ListModel<Section> model = mySectionList.getModel();
-        if (model.getSize() > 0) {
-            mySectionList.setSelectedIndex(0);
-        }
+        if (mySectionList.getModel().getSize() > 0) mySectionList.setSelectedIndex(0);
     }
 
     public void setSectionDetail(String text) {
         sectionInfoArea.setText(text);
+    }
+
+    public void setAvailableSectionDetail(String text) {
+        availableSectionDetailArea.setText(text);
     }
 }
